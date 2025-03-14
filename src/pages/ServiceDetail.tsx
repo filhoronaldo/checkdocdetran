@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType } from "@/types";
@@ -32,7 +31,7 @@ export default function ServiceDetail() {
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
   const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
-  
+
   useEffect(() => {
     const foundService = services.find(s => s.id === id);
     if (foundService) {
@@ -52,6 +51,29 @@ export default function ServiceDetail() {
       setAllCompleted(totalItems > 0 && completedItems === totalItems);
     }
   }, [id, services]);
+
+  // Reset checklist when unmounting
+  useEffect(() => {
+    return () => {
+      if (service) {
+        const updatedService = {
+          ...service,
+          checklists: service.checklists.map(checklist => ({
+            ...checklist,
+            items: checklist.items.map(item => ({
+              ...item,
+              isCompleted: false
+            }))
+          }))
+        };
+        
+        const updatedServices = services.map(s => 
+          s.id === service.id ? updatedService : s
+        );
+        setServices(updatedServices);
+      }
+    };
+  }, [service, services, setServices]);
   
   const handleToggleItem = (checklistGroupId: string, itemId: string) => {
     if (!service) return;
