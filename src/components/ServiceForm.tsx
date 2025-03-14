@@ -1,5 +1,5 @@
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldArrayWithId } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -164,10 +164,10 @@ export default function ServiceForm({
 
               <div className="space-y-8">
                 {checklistFields.map((checklist, checklistIndex) => {
-                  // Fixed error here: properly type the useFieldArray hook
-                  const itemsArray = useFieldArray({
+                  // Create a properly typed nested field array for the items
+                  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
                     control: form.control,
-                    name: `checklists.${checklistIndex}.items` as `checklists.${number}.items` // Fixed type casting
+                    name: `checklists.${checklistIndex}.items` as any // Type assertion to bypass TypeScript limitation
                   });
 
                   return (
@@ -209,7 +209,7 @@ export default function ServiceForm({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => itemsArray.append("")}
+                            onClick={() => appendItem("")}
                             className="h-8 px-2 text-xs"
                           >
                             <Plus className="h-3 w-3 mr-1" />
@@ -217,7 +217,7 @@ export default function ServiceForm({
                           </Button>
                         </div>
 
-                        {itemsArray.fields.map((item, itemIndex) => (
+                        {itemFields.map((item, itemIndex) => (
                           <div key={item.id} className="flex items-center gap-2">
                             <div className="flex-1">
                               <FormField
@@ -233,12 +233,12 @@ export default function ServiceForm({
                                 )}
                               />
                             </div>
-                            {itemsArray.fields.length > 1 && (
+                            {itemFields.length > 1 && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => itemsArray.remove(itemIndex)}
+                                onClick={() => removeItem(itemIndex)}
                                 className="text-muted-foreground hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -262,3 +262,4 @@ export default function ServiceForm({
     </Card>
   );
 }
+
