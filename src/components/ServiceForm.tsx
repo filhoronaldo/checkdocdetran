@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { serviceCategories } from "@/data/services";
 import { ServiceFormData, ServiceCategory } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título precisa ter pelo menos 3 caracteres"),
@@ -59,14 +59,6 @@ export default function ServiceForm({
       control: form.control,
       name: "checklists"
     });
-
-  // Create a single useFieldArray for all checklist items
-  const checklistItemsArrays = checklistFields.map((_, index) => 
-    useFieldArray({
-      control: form.control,
-      name: `checklists.${index}.items` as any
-    })
-  );
 
   const handleSubmit = (data: ServiceFormData) => {
     try {
@@ -162,7 +154,9 @@ export default function ServiceForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => appendChecklist({ title: "", items: [""] })}
+                  onClick={() => {
+                    appendChecklist({ title: "", items: [""] });
+                  }}
                   className="flex items-center gap-1"
                 >
                   <Plus className="h-4 w-4" />
@@ -172,8 +166,13 @@ export default function ServiceForm({
 
               <div className="space-y-8">
                 {checklistFields.map((checklist, checklistIndex) => {
-                  const { fields: itemFields, append: appendItem, remove: removeItem } = 
-                    checklistItemsArrays[checklistIndex];
+                  // Create the nested field array for each checklist item
+                  // Note: This must be done inside the render loop so that React hooks
+                  // are always called in the same order
+                  const itemsArray = useFieldArray({
+                    control: form.control,
+                    name: `checklists.${checklistIndex}.items` as any
+                  });
 
                   return (
                     <div 
@@ -214,7 +213,7 @@ export default function ServiceForm({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => appendItem("")}
+                            onClick={() => itemsArray.append("")}
                             className="h-8 px-2 text-xs"
                           >
                             <Plus className="h-3 w-3 mr-1" />
@@ -222,7 +221,7 @@ export default function ServiceForm({
                           </Button>
                         </div>
 
-                        {itemFields.map((item, itemIndex) => (
+                        {itemsArray.fields.map((item, itemIndex) => (
                           <div key={item.id} className="flex items-center gap-2">
                             <div className="flex-1">
                               <FormField
@@ -238,12 +237,12 @@ export default function ServiceForm({
                                 )}
                               />
                             </div>
-                            {itemFields.length > 1 && (
+                            {itemsArray.fields.length > 1 && (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => removeItem(itemIndex)}
+                                onClick={() => itemsArray.remove(itemIndex)}
                                 className="text-muted-foreground hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
