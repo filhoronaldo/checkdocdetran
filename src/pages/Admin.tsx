@@ -1,9 +1,7 @@
-
-import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { Service, ServiceFormData } from "@/types";
+import { Service, ServiceFormData, ServiceCategory } from "@/types";
 import { initialServices } from "@/data/services";
 import Layout from "@/components/Layout";
 import ServiceForm from "@/components/ServiceForm";
@@ -86,7 +84,7 @@ export default function Admin() {
 
     return {
       title: serviceToEdit.title,
-      category: serviceToEdit.category,
+      category: serviceToEdit.category as ServiceCategory,
       description: serviceToEdit.description,
       checklists: serviceToEdit.checklists.map(checklist => ({
         title: checklist.title,

@@ -17,13 +17,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { serviceCategories } from "@/data/services";
-import { ServiceFormData } from "@/types";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { ServiceFormData, ServiceCategory } from "@/types";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título precisa ter pelo menos 3 caracteres"),
-  category: z.enum(["Veículo", "Habilitação", "Infrações", "Outros"]),
+  category: z.enum(["Veículo", "Habilitação", "Infrações", "Outros"] as const),
   description: z.string().min(10, "A descrição precisa ter pelo menos 10 caracteres"),
   checklists: z.array(
     z.object({
@@ -107,7 +107,7 @@ export default function ServiceForm({
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={field.onChange as (value: string) => void}
                       defaultValue={field.value}
                     >
                       <FormControl>
@@ -164,9 +164,10 @@ export default function ServiceForm({
 
               <div className="space-y-8">
                 {checklistFields.map((checklist, checklistIndex) => {
+                  // Fixed error here: properly type the useFieldArray hook
                   const itemsArray = useFieldArray({
                     control: form.control,
-                    name: `checklists.${checklistIndex}.items`
+                    name: `checklists.${checklistIndex}.items` as `checklists.${number}.items` // Fixed type casting
                   });
 
                   return (
