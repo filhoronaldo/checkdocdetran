@@ -60,6 +60,14 @@ export default function ServiceForm({
       name: "checklists"
     });
 
+  // Create a single useFieldArray for all checklist items
+  const checklistItemsArrays = checklistFields.map((_, index) => 
+    useFieldArray({
+      control: form.control,
+      name: `checklists.${index}.items` as any
+    })
+  );
+
   const handleSubmit = (data: ServiceFormData) => {
     try {
       onSubmit(data);
@@ -164,11 +172,8 @@ export default function ServiceForm({
 
               <div className="space-y-8">
                 {checklistFields.map((checklist, checklistIndex) => {
-                  // Create a properly typed nested field array for the items
-                  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
-                    control: form.control,
-                    name: `checklists.${checklistIndex}.items` as any // Type assertion to bypass TypeScript limitation
-                  });
+                  const { fields: itemFields, append: appendItem, remove: removeItem } = 
+                    checklistItemsArrays[checklistIndex];
 
                   return (
                     <div 
@@ -262,4 +267,3 @@ export default function ServiceForm({
     </Card>
   );
 }
-
