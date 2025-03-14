@@ -1,5 +1,5 @@
 
-import { useForm, useFieldArray, FieldArrayWithId } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { serviceCategories } from "@/data/services";
-import { ServiceFormData, ServiceCategory } from "@/types";
-import { Plus, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ServiceFormData } from "@/types";
+import ChecklistForm from "./ChecklistForm";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título precisa ter pelo menos 3 caracteres"),
@@ -54,12 +53,6 @@ export default function ServiceForm({
     defaultValues,
   });
 
-  const { fields: checklistFields, append: appendChecklist, remove: removeChecklist } = 
-    useFieldArray({
-      control: form.control,
-      name: "checklists"
-    });
-
   const handleSubmit = (data: ServiceFormData) => {
     try {
       onSubmit(data);
@@ -74,8 +67,6 @@ export default function ServiceForm({
       toast.error("Erro ao cadastrar serviço");
     }
   };
-
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
 
   return (
     <Card className="w-full">
@@ -147,115 +138,7 @@ export default function ServiceForm({
               )}
             />
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Checklists</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    appendChecklist({ title: "", items: [""] });
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar Seção
-                </Button>
-              </div>
-
-              <div className="space-y-8">
-                {checklistFields.map((checklist, checklistIndex) => {
-                  // Create the nested field array for each checklist item
-                  // Note: This must be done inside the render loop so that React hooks
-                  // are always called in the same order
-                  const itemsArray = useFieldArray({
-                    control: form.control,
-                    name: `checklists.${checklistIndex}.items` as any
-                  });
-
-                  return (
-                    <div 
-                      key={checklist.id} 
-                      className="p-4 border border-border rounded-lg space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <FormField
-                          control={form.control}
-                          name={`checklists.${checklistIndex}.title`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input placeholder="Título da Seção" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {checklistFields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeChecklist(checklistIndex)}
-                            className="ml-2 text-destructive hover:text-destructive/90"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-sm font-medium text-muted-foreground">Itens</h4>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => itemsArray.append("")}
-                            className="h-8 px-2 text-xs"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Adicionar
-                          </Button>
-                        </div>
-
-                        {itemsArray.fields.map((item, itemIndex) => (
-                          <div key={item.id} className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <FormField
-                                control={form.control}
-                                name={`checklists.${checklistIndex}.items.${itemIndex}`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input placeholder="Item do checklist" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            {itemsArray.fields.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => itemsArray.remove(itemIndex)}
-                                className="text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ChecklistForm control={form.control} />
 
             <Button type="submit" className="w-full md:w-auto">
               {submitLabel}
