@@ -1,9 +1,10 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Car, FileText, AlertTriangle, User, Settings, Menu, X } from 'lucide-react';
+import { Car, FileText, AlertTriangle, User, Settings, Menu, X, Users, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
   
   const navItems = [
     { 
@@ -38,10 +40,18 @@ export default function Layout({ children }: LayoutProps) {
       path: '/',
       filter: '?category=Outros'
     },
+  ];
+  
+  const adminItems = [
     { 
       name: 'Admin', 
       icon: <Settings className="h-5 w-5" />, 
       path: '/admin' 
+    },
+    { 
+      name: 'Usuários', 
+      icon: <Users className="h-5 w-5" />, 
+      path: '/users' 
     },
   ];
   
@@ -73,6 +83,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           
           <nav className="hidden md:flex items-center space-x-1">
+            {/* Regular nav items */}
             {navItems.map((item) => (
               <Link
                 key={item.name}
@@ -88,6 +99,46 @@ export default function Layout({ children }: LayoutProps) {
                 {item.name}
               </Link>
             ))}
+            
+            {/* Admin nav items - only show if authenticated */}
+            {isAuthenticated && (
+              <>
+                {adminItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    className={cn(
+                      "px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5",
+                      isActiveLink(item.path)
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                ))}
+                
+                <button
+                  onClick={() => logout()}
+                  className="px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Sair
+                </button>
+              </>
+            )}
+            
+            {/* Login button - only show if not authenticated */}
+            {!isAuthenticated && (
+              <Link
+                to="/login"
+                className="px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <User className="h-5 w-5" />
+                Login
+              </Link>
+            )}
           </nav>
         </div>
       </header>
@@ -111,6 +162,7 @@ export default function Layout({ children }: LayoutProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-4 space-y-1">
+                {/* Regular nav items */}
                 {navItems.map((item) => (
                   <Link
                     key={item.name}
@@ -127,6 +179,55 @@ export default function Layout({ children }: LayoutProps) {
                     {item.name}
                   </Link>
                 ))}
+                
+                {/* Admin nav items - only show if authenticated */}
+                {isAuthenticated && (
+                  <>
+                    <div className="h-px bg-border my-2" />
+                    {adminItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                          isActiveLink(item.path)
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                        onClick={() => setIsSidebarOpen(false)}
+                      >
+                        {item.icon}
+                        {item.name}
+                      </Link>
+                    ))}
+                    
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsSidebarOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Sair
+                    </button>
+                  </>
+                )}
+                
+                {/* Login button - only show if not authenticated */}
+                {!isAuthenticated && (
+                  <>
+                    <div className="h-px bg-border my-2" />
+                    <Link
+                      to="/login"
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <User className="h-5 w-5" />
+                      Login
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>

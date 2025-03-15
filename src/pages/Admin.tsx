@@ -10,12 +10,30 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AnimatedTransition from "@/components/AnimatedTransition";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Admin() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
+  const { isAuthenticated, isLoading } = useAuth();
   const isEditMode = !!id;
+
+  // Check if user is authenticated
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    navigate("/login", { state: { from: isEditMode ? `/admin/edit/${id}` : "/admin" } });
+    return null;
+  }
 
   const serviceToEdit = isEditMode 
     ? services.find(service => service.id === id) 

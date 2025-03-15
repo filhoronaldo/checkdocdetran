@@ -12,6 +12,7 @@ import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share } from "lucide-react
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,13 +32,13 @@ export default function ServiceDetail() {
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
   const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const foundService = services.find(s => s.id === id);
     if (foundService) {
       setService(foundService);
       
-      // Check if all items are completed
       const totalItems = foundService.checklists.reduce(
         (acc, checklist) => acc + checklist.items.length, 
         0
@@ -52,7 +53,6 @@ export default function ServiceDetail() {
     }
   }, [id, services]);
 
-  // Reset checklist when unmounting - but store in a ref to prevent recreation on each render
   useEffect(() => {
     return () => {
       if (service) {
@@ -72,8 +72,8 @@ export default function ServiceDetail() {
         );
       }
     };
-  }, []); // Remove setServices from dependencies
-  
+  }, []);
+
   const handleToggleItem = (checklistGroupId: string, itemId: string) => {
     if (!service) return;
     
@@ -97,12 +97,10 @@ export default function ServiceDetail() {
     
     setService(updatedService);
     
-    // Update the service in the services array using functional update
     setServices(prevServices => 
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    // Check if all items are completed
     const totalItems = updatedService.checklists.reduce(
       (acc, checklist) => acc + checklist.items.length, 
       0
@@ -132,7 +130,6 @@ export default function ServiceDetail() {
     
     setService(updatedService);
     
-    // Update the service in the services array
     const updatedServices = services.map(s => 
       s.id === service.id ? updatedService : s
     );
@@ -237,44 +234,49 @@ export default function ServiceDetail() {
                 <RotateCcw className="h-4 w-4" />
                 Reiniciar
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={() => navigate(`/admin/edit/${service.id}`)}
-              >
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              
+              {isAuthenticated && (
+                <>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex items-center gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    className="flex items-center gap-1"
+                    onClick={() => navigate(`/admin/edit/${service.id}`)}
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
+                    <Pencil className="h-4 w-4" />
+                    Editar
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir serviço</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja excluir este serviço? Esta ação não poderá ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={deleteService}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir serviço</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir este serviço? Esta ação não poderá ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={deleteService}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
             </div>
           </div>
           
@@ -289,7 +291,6 @@ export default function ServiceDetail() {
           
           <p className="text-muted-foreground">{service.description}</p>
           
-          {/* Progress bar */}
           <div className="w-full bg-muted rounded-full h-2.5 mt-2">
             <motion.div 
               className="bg-completed h-2.5 rounded-full"
