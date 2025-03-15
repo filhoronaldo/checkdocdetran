@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -33,6 +34,7 @@ export default function ServiceDetail() {
   const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
+  const isUnmounting = useRef(false);
 
   useEffect(() => {
     const foundService = services.find(s => s.id === id);
@@ -55,8 +57,22 @@ export default function ServiceDetail() {
 
   useEffect(() => {
     return () => {
+      isUnmounting.current = true;
       if (service) {
-        resetAllItems(false);
+        const updatedService = {
+          ...service,
+          checklists: service.checklists.map(checklist => ({
+            ...checklist,
+            items: checklist.items.map(item => ({
+              ...item,
+              isCompleted: false
+            }))
+          }))
+        };
+        
+        setServices(prevServices => 
+          prevServices.map(s => s.id === service.id ? updatedService : s)
+        );
       }
     };
   }, [service]);
@@ -117,14 +133,16 @@ export default function ServiceDetail() {
     
     setService(updatedService);
     
-    const updatedServices = services.map(s => 
-      s.id === service.id ? updatedService : s
-    );
-    setServices(updatedServices);
-    setAllCompleted(false);
-    
-    if (showToast) {
-      toast.success("Checklist reiniciado com sucesso!");
+    if (!isUnmounting.current) {
+      const updatedServices = services.map(s => 
+        s.id === service.id ? updatedService : s
+      );
+      setServices(updatedServices);
+      setAllCompleted(false);
+      
+      if (showToast) {
+        toast.success("Checklist reiniciado com sucesso!");
+      }
     }
   };
   
@@ -218,7 +236,7 @@ export default function ServiceDetail() {
                 variant="outline" 
                 size="sm" 
                 className="flex items-center gap-1"
-                onClick={resetAllItems}
+                onClick={() => resetAllItems()}
               >
                 <RotateCcw className="h-4 w-4" />
                 Reiniciar
