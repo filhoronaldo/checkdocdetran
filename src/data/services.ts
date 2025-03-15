@@ -1,4 +1,3 @@
-
 import { Service, ServiceCategory } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -22,12 +21,16 @@ export const initialServices: Service[] = [
         items: [
           {
             id: uuidv4(),
-            text: "ATPV (pode ser eletrônico) ou CRV (antigo)",
+            text: "ATPV (Autorização para Transferência de Propriedade Veicular)",
+            observation: "Pode ser eletrônico ou em papel (CRV antigo)",
+            tag: "Original",
             isCompleted: false
           },
           {
             id: uuidv4(),
-            text: "Vistoria Detran (pode ser eletrônico)",
+            text: "Comprovante de Vistoria Detran",
+            observation: "Pode ser eletrônico em alguns estados",
+            tag: "Digital",
             isCompleted: false
           }
         ]
@@ -38,12 +41,16 @@ export const initialServices: Service[] = [
         items: [
           {
             id: uuidv4(),
-            text: "Documento de Identificação Oficial com Foto (Identidade, CNH, Carteira de Trabalho)",
+            text: "Documento de Identificação Oficial com Foto",
+            observation: "Identidade, CNH, Carteira de Trabalho",
+            tag: "Original e Cópia",
             isCompleted: false
           },
           {
             id: uuidv4(),
-            text: "CPF (Caso não tenha no documento de identificação)",
+            text: "CPF",
+            observation: "Caso não conste no documento de identificação",
+            tag: "Original",
             isCompleted: false
           }
         ]

@@ -32,7 +32,9 @@ export default function Admin() {
         title: checklist.title,
         items: checklist.items.map(item => ({
           id: uuidv4(),
-          text: item,
+          text: item.text,
+          observation: item.observation || undefined,
+          tag: item.tag || undefined,
           isCompleted: false
         }))
       }))
@@ -63,7 +65,9 @@ export default function Admin() {
             const existingItem = existingGroup?.items[index];
             return {
               id: existingItem?.id || uuidv4(),
-              text: item,
+              text: item.text,
+              observation: item.observation || undefined,
+              tag: item.tag || undefined,
               isCompleted: existingItem?.isCompleted || false
             };
           })
@@ -89,7 +93,11 @@ export default function Admin() {
       description: serviceToEdit.description,
       checklists: serviceToEdit.checklists.map(checklist => ({
         title: checklist.title,
-        items: checklist.items.map(item => item.text)
+        items: checklist.items.map(item => ({
+          text: item.text,
+          observation: item.observation,
+          tag: item.tag
+        }))
       }))
     };
   };

@@ -1,7 +1,7 @@
 
 import { ChecklistItem as ChecklistItemType } from "@/types";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, FileText, Copy, FileDigit, Files } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChecklistItemProps {
@@ -10,6 +10,21 @@ interface ChecklistItemProps {
 }
 
 export default function ChecklistItem({ item, onToggle }: ChecklistItemProps) {
+  const getTagIcon = () => {
+    switch (item.tag) {
+      case 'Original':
+        return <FileText className="h-3.5 w-3.5 text-blue-500" />;
+      case 'Físico':
+        return <Copy className="h-3.5 w-3.5 text-amber-500" />;
+      case 'Digital':
+        return <FileDigit className="h-3.5 w-3.5 text-green-500" />;
+      case 'Original e Cópia':
+        return <Files className="h-3.5 w-3.5 text-purple-500" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <motion.div
       layout
@@ -43,13 +58,38 @@ export default function ChecklistItem({ item, onToggle }: ChecklistItemProps) {
           </motion.div>
         )}
       </div>
-      <div 
-        className={cn(
-          "text-sm transition-colors duration-300",
-          item.isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+      <div className="flex-1">
+        <div 
+          className={cn(
+            "text-sm transition-colors duration-300 flex items-center gap-2",
+            item.isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+          )}
+        >
+          {item.text}
+          {item.tag && (
+            <span className={cn(
+              "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
+              item.isCompleted ? "opacity-50" : "opacity-100",
+              item.tag === 'Original' ? "bg-blue-100 text-blue-700" :
+              item.tag === 'Físico' ? "bg-amber-100 text-amber-700" :
+              item.tag === 'Digital' ? "bg-green-100 text-green-700" :
+              "bg-purple-100 text-purple-700"
+            )}>
+              {getTagIcon()}
+              {item.tag}
+            </span>
+          )}
+        </div>
+        {item.observation && (
+          <div 
+            className={cn(
+              "text-xs mt-1",
+              item.isCompleted ? "text-muted-foreground/70 line-through" : "text-muted-foreground"
+            )}
+          >
+            {item.observation}
+          </div>
         )}
-      >
-        {item.text}
       </div>
     </motion.div>
   );

@@ -3,6 +3,8 @@ export interface ChecklistItem {
   id: string;
   text: string;
   isCompleted: boolean;
+  observation?: string;
+  tag?: 'Original' | 'Físico' | 'Digital' | 'Original e Cópia';
 }
 
 export interface ChecklistGroup {
@@ -27,6 +29,10 @@ export interface ServiceFormData {
   description: string;
   checklists: {
     title: string;
-    items: string[];
+    items: {
+      text: string;
+      observation?: string;
+      tag?: 'Original' | 'Físico' | 'Digital' | 'Original e Cópia';
+    }[];
   }[];
 }

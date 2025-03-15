@@ -27,7 +27,13 @@ const formSchema = z.object({
   checklists: z.array(
     z.object({
       title: z.string().min(1, "O título é obrigatório"),
-      items: z.array(z.string().min(1, "O item não pode estar vazio"))
+      items: z.array(
+        z.object({
+          text: z.string().min(1, "O item não pode estar vazio"),
+          observation: z.string().optional(),
+          tag: z.enum(["Original", "Físico", "Digital", "Original e Cópia"]).optional()
+        })
+      )
     })
   ).min(1, "Adicione pelo menos uma seção de checklist")
 });
@@ -44,7 +50,10 @@ export default function ServiceForm({
     title: "",
     category: "Veículo",
     description: "",
-    checklists: [{ title: "Documentos Necessários", items: [""] }]
+    checklists: [{ 
+      title: "Documentos Necessários", 
+      items: [{ text: "", observation: "", tag: undefined }] 
+    }]
   },
   submitLabel = "Cadastrar Serviço"
 }: ServiceFormProps) {
@@ -60,7 +69,10 @@ export default function ServiceForm({
         title: "",
         category: "Veículo",
         description: "",
-        checklists: [{ title: "Documentos Necessários", items: [""] }]
+        checklists: [{ 
+          title: "Documentos Necessários", 
+          items: [{ text: "", observation: "", tag: undefined }] 
+        }]
       });
       toast.success("Serviço cadastrado com sucesso!");
     } catch (error) {
