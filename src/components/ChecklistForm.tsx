@@ -27,7 +27,7 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
           variant="outline"
           size="sm"
           onClick={() => {
-            append({ title: "", items: [""] });
+            append({ title: "", items: [{ text: "", observation: "", tag: undefined }] });
           }}
           className="flex items-center gap-1"
         >
