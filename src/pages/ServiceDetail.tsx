@@ -52,7 +52,7 @@ export default function ServiceDetail() {
     }
   }, [id, services]);
 
-  // Reset checklist when unmounting
+  // Reset checklist when unmounting - but store in a ref to prevent recreation on each render
   useEffect(() => {
     return () => {
       if (service) {
@@ -67,13 +67,12 @@ export default function ServiceDetail() {
           }))
         };
         
-        const updatedServices = services.map(s => 
-          s.id === service.id ? updatedService : s
+        setServices(prevServices => 
+          prevServices.map(s => s.id === service.id ? updatedService : s)
         );
-        setServices(updatedServices);
       }
     };
-  }, [service, services, setServices]);
+  }, []); // Remove setServices from dependencies
   
   const handleToggleItem = (checklistGroupId: string, itemId: string) => {
     if (!service) return;
@@ -98,11 +97,10 @@ export default function ServiceDetail() {
     
     setService(updatedService);
     
-    // Update the service in the services array
-    const updatedServices = services.map(s => 
-      s.id === service.id ? updatedService : s
+    // Update the service in the services array using functional update
+    setServices(prevServices => 
+      prevServices.map(s => s.id === service.id ? updatedService : s)
     );
-    setServices(updatedServices);
     
     // Check if all items are completed
     const totalItems = updatedService.checklists.reduce(
