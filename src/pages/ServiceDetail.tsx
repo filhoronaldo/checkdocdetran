@@ -56,23 +56,10 @@ export default function ServiceDetail() {
   useEffect(() => {
     return () => {
       if (service) {
-        const updatedService = {
-          ...service,
-          checklists: service.checklists.map(checklist => ({
-            ...checklist,
-            items: checklist.items.map(item => ({
-              ...item,
-              isCompleted: false
-            }))
-          }))
-        };
-        
-        setServices(prevServices => 
-          prevServices.map(s => s.id === service.id ? updatedService : s)
-        );
+        resetAllItems(false);
       }
     };
-  }, []);
+  }, [service]);
 
   const handleToggleItem = (checklistGroupId: string, itemId: string) => {
     if (!service) return;
@@ -114,7 +101,7 @@ export default function ServiceDetail() {
     setAllCompleted(totalItems > 0 && completedItems === totalItems);
   };
   
-  const resetAllItems = () => {
+  const resetAllItems = (showToast = true) => {
     if (!service) return;
     
     const updatedService = {
@@ -136,7 +123,9 @@ export default function ServiceDetail() {
     setServices(updatedServices);
     setAllCompleted(false);
     
-    toast.success("Checklist reiniciado com sucesso!");
+    if (showToast) {
+      toast.success("Checklist reiniciado com sucesso!");
+    }
   };
   
   const deleteService = () => {
