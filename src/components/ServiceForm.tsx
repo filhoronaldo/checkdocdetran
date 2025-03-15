@@ -31,7 +31,7 @@ const formSchema = z.object({
         z.object({
           text: z.string().min(1, "O item não pode estar vazio"),
           observation: z.string().optional(),
-          tag: z.enum(["Original", "Físico", "Digital", "Original e Cópia"]).optional()
+          tag: z.enum(["Original", "Físico", "Digital", "Digital ou Físico", "Original e Cópia"]).optional()
         })
       )
     })
