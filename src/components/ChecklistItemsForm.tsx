@@ -26,6 +26,16 @@ interface ChecklistItemsFormProps {
   checklistIndex: number;
 }
 
+// Define the expected type for field items
+interface FieldItem {
+  id: string;
+  text: string;
+  observation?: string;
+  tags?: ('Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia')[];
+  isOptional?: boolean;
+  alternativeOf?: string;
+}
+
 const tagOptions = [
   { value: 'Original', label: 'Original' },
   { value: 'Físico', label: 'Físico' },
@@ -48,7 +58,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
     
     // Set the current item as part of the alternative group
     const updatedItem = { 
-      ...fields[index], 
+      ...(fields[index] as unknown as FieldItem), 
       alternativeOf: groupId 
     };
     update(index, updatedItem);
@@ -68,14 +78,14 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
     
     // Check if there are other items with the same alternativeOf
     return fields.some((field, i) => 
-      i !== index && field.alternativeOf === item.alternativeOf
+      i !== index && (field as unknown as FieldItem).alternativeOf === item.alternativeOf
     );
   };
 
   const getAlternativeGroupItems = (groupId: string) => {
     return fields
       .map((field, i) => ({ ...field, index: i }))
-      .filter(field => field.alternativeOf === groupId);
+      .filter(field => (field as unknown as FieldItem).alternativeOf === groupId);
   };
 
   return (
@@ -95,23 +105,24 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
       </div>
 
       {fields.map((item, itemIndex) => {
+        const typedItem = item as unknown as FieldItem;
         // If this isn't the first item in an alternative group, don't show it separately
-        const alternativeItems = item.alternativeOf 
-          ? getAlternativeGroupItems(item.alternativeOf)
+        const alternativeItems = typedItem.alternativeOf 
+          ? getAlternativeGroupItems(typedItem.alternativeOf)
           : [];
         
         const isFirstInAlternativeGroup = alternativeItems.length > 0 && 
           alternativeItems[0].index === itemIndex;
         
         // Skip rendering if it's part of an alternative group but not the first item
-        if (item.alternativeOf && !isFirstInAlternativeGroup) {
+        if (typedItem.alternativeOf && !isFirstInAlternativeGroup) {
           return null;
         }
         
         return (
           <div 
             key={item.id} 
-            className={`space-y-2 border ${item.alternativeOf ? 'border-blue-200 bg-blue-50/30' : 'border-border'} p-3 rounded-md mb-3`}
+            className={`space-y-2 border ${typedItem.alternativeOf ? 'border-blue-200 bg-blue-50/30' : 'border-border'} p-3 rounded-md mb-3`}
           >
             <div className="flex items-start gap-2">
               <div className="flex-1">
@@ -147,7 +158,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
               />
               
               {/* Add alternative button */}
-              {!item.alternativeOf && (
+              {!typedItem.alternativeOf && (
                 <Button
                   type="button"
                   variant="outline"
@@ -161,17 +172,20 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
               )}
               
               {/* Delete button */}
-              {(fields.length > 1 || item.alternativeOf) && (
+              {(fields.length > 1 || typedItem.alternativeOf) && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (item.alternativeOf) {
+                    if (typedItem.alternativeOf) {
                       // If part of a group, find and remove all items in that group
-                      const groupId = item.alternativeOf;
+                      const groupId = typedItem.alternativeOf;
                       const groupItems = fields
-                        .map((f, i) => ({ index: i, alternativeOf: f.alternativeOf }))
+                        .map((f, i) => ({ 
+                          index: i, 
+                          alternativeOf: (f as unknown as FieldItem).alternativeOf 
+                        }))
                         .filter(f => f.alternativeOf === groupId)
                         .sort((a, b) => b.index - a.index); // Remove from last to first
 
@@ -194,7 +208,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
               <div className="ml-6 pl-3 border-l-2 border-blue-300 space-y-3 my-3">
                 <div className="text-xs font-medium text-blue-600">Alternativas (qualquer uma atende):</div>
                 
-                {alternativeItems.slice(1).map((alt, altIdx) => (
+                {alternativeItems.slice(1).map((alt) => (
                   <FormField
                     key={alt.id}
                     control={control}
@@ -228,7 +242,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                       text: "", 
                       observation: "", 
                       tags: [], 
-                      alternativeOf: item.alternativeOf,
+                      alternativeOf: typedItem.alternativeOf,
                       isOptional: false 
                     });
                   }}
@@ -275,11 +289,11 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                             <div key={tag.value} className="flex items-center space-x-2">
                               <Checkbox 
                                 id={`tag-${itemIndex}-${tag.value}`}
-                                checked={field.value?.includes(tag.value)}
+                                checked={field.value?.includes(tag.value as any)}
                                 onCheckedChange={(checked) => {
                                   const currentTags = field.value || [];
                                   const newTags = checked
-                                    ? [...currentTags, tag.value]
+                                    ? [...currentTags, tag.value as any]
                                     : currentTags.filter(t => t !== tag.value);
                                   field.onChange(newTags);
                                 }}

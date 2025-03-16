@@ -18,8 +18,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
+// Define user type
+interface User {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  isAdmin: boolean;
+}
+
 // Initial admin user for reference
-const initialUsers = [
+const initialUsers: User[] = [
   {
     id: uuidv4(),
     email: "email@ronaldofilho.com",
@@ -49,7 +58,7 @@ interface UserFormProps {
 }
 
 export default function UserForm({ onSuccess }: UserFormProps) {
-  const [users, setUsers] = useLocalStorage<typeof initialUsers>("users", initialUsers);
+  const [users, setUsers] = useLocalStorage<User[]>("users", initialUsers);
   const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<FormValues>({
@@ -75,9 +84,12 @@ export default function UserForm({ onSuccess }: UserFormProps) {
       }
       
       // Add new user
-      const newUser = {
+      const newUser: User = {
         id: uuidv4(),
-        ...data
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        isAdmin: data.isAdmin
       };
       
       setUsers([...users, newUser]);
