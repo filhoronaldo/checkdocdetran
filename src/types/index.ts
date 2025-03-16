@@ -4,13 +4,16 @@ export interface ChecklistItem {
   text: string;
   isCompleted: boolean;
   observation?: string;
-  tag?: 'Original' | 'Físico' | 'Digital' | 'Original e Cópia';
+  tags?: ('Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia')[];
+  isOptional?: boolean;
+  alternativeOf?: string;
 }
 
 export interface ChecklistGroup {
   id: string;
   title: string;
   items: ChecklistItem[];
+  isOptional?: boolean;
 }
 
 export interface Service {
@@ -29,10 +32,13 @@ export interface ServiceFormData {
   description: string;
   checklists: {
     title: string;
+    isOptional?: boolean;
     items: {
       text: string;
       observation?: string;
-      tag?: 'Original' | 'Físico' | 'Digital' | 'Original e Cópia';
+      tags?: ('Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia')[];
+      isOptional?: boolean;
+      alternativeOf?: string;
     }[];
   }[];
 }

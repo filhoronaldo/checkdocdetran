@@ -20,6 +20,16 @@ import { serviceCategories } from "@/data/services";
 import { ServiceFormData } from "@/types";
 import ChecklistForm from "./ChecklistForm";
 
+// Define the allowed tag types
+const TagType = z.enum([
+  "Original", 
+  "Físico", 
+  "Digital", 
+  "Digital ou Físico", 
+  "Original e Cópia"
+]);
+
+// Updated schema to support multiple tags, optional items and sections
 const formSchema = z.object({
   title: z.string().min(3, "O título precisa ter pelo menos 3 caracteres"),
   category: z.enum(["Veículo", "Habilitação", "Infrações", "Outros"] as const),
@@ -27,11 +37,14 @@ const formSchema = z.object({
   checklists: z.array(
     z.object({
       title: z.string().min(1, "O título é obrigatório"),
+      isOptional: z.boolean().optional(),
       items: z.array(
         z.object({
           text: z.string().min(1, "O item não pode estar vazio"),
           observation: z.string().optional(),
-          tag: z.enum(["Original", "Físico", "Digital", "Digital ou Físico", "Original e Cópia"]).optional()
+          tags: z.array(TagType).optional(),
+          isOptional: z.boolean().optional(),
+          alternativeOf: z.string().optional()
         })
       )
     })
@@ -52,7 +65,8 @@ export default function ServiceForm({
     description: "",
     checklists: [{ 
       title: "Documentos Necessários", 
-      items: [{ text: "", observation: "", tag: undefined }] 
+      isOptional: false,
+      items: [{ text: "", observation: "", tags: [], isOptional: false }] 
     }]
   },
   submitLabel = "Cadastrar Serviço"
@@ -71,7 +85,8 @@ export default function ServiceForm({
         description: "",
         checklists: [{ 
           title: "Documentos Necessários", 
-          items: [{ text: "", observation: "", tag: undefined }] 
+          isOptional: false,
+          items: [{ text: "", observation: "", tags: [], isOptional: false }] 
         }]
       });
       toast.success("Serviço cadastrado com sucesso!");
