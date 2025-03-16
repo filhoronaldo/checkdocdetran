@@ -1,4 +1,3 @@
-
 import { ChecklistItem as ChecklistItemType } from "@/types";
 import { motion } from "framer-motion";
 import { Check, FileText, Copy, FileDigit, Files } from "lucide-react";
@@ -140,15 +139,14 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
       className={cn(
-        "border border-border/50 rounded-lg p-4 mb-2 flex flex-col cursor-pointer transition-all duration-300",
+        "border border-border/50 rounded-lg p-4 mb-2 transition-all duration-300",
         effectivelyCompleted 
           ? "bg-completed/10 border-completed/30" 
           : "bg-card/50 hover:bg-card",
         item.isOptional ? "border-l-4 border-l-amber-400" : ""
       )}
-      onClick={() => onToggle(item.id)}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 cursor-pointer" onClick={() => onToggle(item.id)}>
         <div 
           className={cn(
             "mt-0.5 w-5 h-5 rounded-full flex-shrink-0 border transition-colors duration-300",
