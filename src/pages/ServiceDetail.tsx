@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Service, ChecklistItem as ChecklistItemType } from "@/types";
+import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Layout from "@/components/Layout";
 import ChecklistItem from "@/components/ChecklistItem";
@@ -34,22 +35,39 @@ export default function ServiceDetail() {
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
 
+  // Calculate progress for each section and overall
+  const calculateProgress = (checklist: ChecklistGroup) => {
+    // Get only required items (non-optional)
+    const requiredItems = checklist.items.filter(item => !item.isOptional);
+    
+    // If no required items, return 100% (all done)
+    if (requiredItems.length === 0) return 100;
+    
+    // Count completed required items
+    const completedRequiredItems = requiredItems.filter(item => item.isCompleted).length;
+    
+    // Calculate percentage
+    return (completedRequiredItems / requiredItems.length) * 100;
+  };
+
   useEffect(() => {
     const foundService = services.find(s => s.id === id);
     if (foundService) {
       setService(foundService);
       
-      const totalItems = foundService.checklists.reduce(
-        (acc, checklist) => acc + checklist.items.length, 
-        0
-      );
+      // Only count required items and non-optional sections
+      const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
       
-      const completedItems = foundService.checklists.reduce(
-        (acc, checklist) => acc + checklist.items.filter(item => item.isCompleted).length, 
-        0
-      );
+      let totalRequiredItems = 0;
+      let completedRequiredItems = 0;
       
-      setAllCompleted(totalItems > 0 && completedItems === totalItems);
+      requiredSections.forEach(checklist => {
+        const requiredItems = checklist.items.filter(item => !item.isOptional);
+        totalRequiredItems += requiredItems.length;
+        completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
+      });
+      
+      setAllCompleted(totalRequiredItems > 0 && completedRequiredItems === totalRequiredItems);
     }
   }, [id, services]);
 
@@ -101,17 +119,18 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    const totalItems = updatedService.checklists.reduce(
-      (acc, checklist) => acc + checklist.items.length, 
-      0
-    );
+    // Recalculate all completed status - only for required items in required sections
+    const requiredSections = updatedService.checklists.filter(checklist => !checklist.isOptional);
+    let totalRequiredItems = 0;
+    let completedRequiredItems = 0;
     
-    const completedItems = updatedService.checklists.reduce(
-      (acc, checklist) => acc + checklist.items.filter(item => item.isCompleted).length, 
-      0
-    );
+    requiredSections.forEach(checklist => {
+      const requiredItems = checklist.items.filter(item => !item.isOptional);
+      totalRequiredItems += requiredItems.length;
+      completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
+    });
     
-    setAllCompleted(totalItems > 0 && completedItems === totalItems);
+    setAllCompleted(totalRequiredItems > 0 && completedRequiredItems === totalRequiredItems);
   };
   
   const resetAllItems = () => {
@@ -165,6 +184,18 @@ export default function ServiceDetail() {
       toast.error("Seu navegador não suporta esta funcionalidade!");
     }
   };
+
+  // Group alternative items with their main item
+  const getAlternativeItems = (checklist: ChecklistGroup, item: ChecklistItemType) => {
+    // If item is already an alternative, return empty array
+    if (item.alternativeOf) return [];
+    
+    // Get all alternatives for this item
+    return checklist.items.filter(i => 
+      i.alternativeOf === item.id || 
+      (item.alternativeOf && i.alternativeOf === item.alternativeOf && i.id !== item.id)
+    );
+  };
   
   if (!service) {
     return (
@@ -183,18 +214,19 @@ export default function ServiceDetail() {
     );
   }
   
-  const totalItems = service.checklists.reduce(
-    (acc, checklist) => acc + checklist.items.length, 
-    0
-  );
+  // Calculate overall progress (only required items in required sections)
+  const requiredSections = service.checklists.filter(checklist => !checklist.isOptional);
+  let totalRequiredItems = 0;
+  let completedRequiredItems = 0;
   
-  const completedItems = service.checklists.reduce(
-    (acc, checklist) => acc + checklist.items.filter(item => item.isCompleted).length, 
-    0
-  );
+  requiredSections.forEach(checklist => {
+    const requiredItems = checklist.items.filter(item => !item.isOptional);
+    totalRequiredItems += requiredItems.length;
+    completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
+  });
   
-  const progressPercentage = totalItems > 0 
-    ? (completedItems / totalItems) * 100 
+  const progressPercentage = totalRequiredItems > 0 
+    ? (completedRequiredItems / totalRequiredItems) * 100 
     : 0;
   
   return (
@@ -285,7 +317,7 @@ export default function ServiceDetail() {
               {service.category}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {completedItems} de {totalItems} documentos verificados
+              {completedRequiredItems} de {totalRequiredItems} documentos obrigatórios verificados
             </span>
           </div>
           
@@ -310,9 +342,9 @@ export default function ServiceDetail() {
                 <Check className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="font-medium">Todos os documentos verificados!</h3>
+                <h3 className="font-medium">Todos os documentos obrigatórios verificados!</h3>
                 <p className="text-sm text-muted-foreground">
-                  Você completou a verificação de todos os documentos para este serviço.
+                  Você completou a verificação de todos os documentos obrigatórios para este serviço.
                 </p>
               </div>
             </Card>
@@ -320,22 +352,72 @@ export default function ServiceDetail() {
         )}
         
         <div className="space-y-8">
-          {service.checklists.map((checklist) => (
-            <div key={checklist.id} className="space-y-3">
-              <h3 className="text-xl font-semibold">{checklist.title}</h3>
-              <AnimatePresence>
-                {checklist.items.map((item) => (
-                  <ChecklistItem 
-                    key={item.id} 
-                    item={item} 
-                    onToggle={(itemId) => handleToggleItem(checklist.id, itemId)} 
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          ))}
+          {service.checklists.map((checklist) => {
+            // Calculate progress for this section (only required items)
+            const sectionProgress = calculateProgress(checklist);
+            
+            // For displaying items, we need to filter out alternatives to avoid duplication
+            const mainItems = checklist.items.filter(item => !item.alternativeOf);
+            
+            return (
+              <div key={checklist.id} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className={cn(
+                    "text-xl font-semibold flex items-center gap-2",
+                    checklist.isOptional ? "text-amber-700" : ""
+                  )}>
+                    {checklist.title}
+                    {checklist.isOptional && (
+                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                        Só em casos específicos
+                      </span>
+                    )}
+                  </h3>
+                  
+                  {/* Progress bar for the section */}
+                  {checklist.items.filter(item => !item.isOptional).length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(sectionProgress)}%
+                      </span>
+                      <div className="w-24 bg-muted rounded-full h-1.5">
+                        <motion.div 
+                          className="bg-completed h-1.5 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${sectionProgress}%` }}
+                          transition={{ duration: 0.5 }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <AnimatePresence>
+                  {mainItems.map((item) => {
+                    // Get all alternatives for this item
+                    const alternatives = getAlternativeItems(checklist, item);
+                    
+                    return (
+                      <ChecklistItem 
+                        key={item.id} 
+                        item={item} 
+                        onToggle={(itemId) => handleToggleItem(checklist.id, itemId)}
+                        alternativeItems={alternatives}
+                        isInOptionalSection={checklist.isOptional}
+                      />
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
       </div>
     </Layout>
   );
+}
+
+// Helper function for class names
+function cn(...inputs: (string | boolean | undefined | null)[]) {
+  return inputs.filter(Boolean).join(" ");
 }

@@ -1,15 +1,22 @@
+
 import { ChecklistItem as ChecklistItemType } from "@/types";
 import { motion } from "framer-motion";
-import { Check, FileText, Copy, FileDigit, Files } from "lucide-react";
+import { Check, FileText, Copy, FileDigit, Files, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
   onToggle: (id: string) => void;
   alternativeItems?: ChecklistItemType[];
+  isInOptionalSection?: boolean;
 }
 
-export default function ChecklistItem({ item, onToggle, alternativeItems = [] }: ChecklistItemProps) {
+export default function ChecklistItem({ 
+  item, 
+  onToggle, 
+  alternativeItems = [], 
+  isInOptionalSection = false 
+}: ChecklistItemProps) {
   const hasAlternatives = alternativeItems.length > 0;
   const isAnyAlternativeCompleted = alternativeItems.some(alt => alt.isCompleted);
   
@@ -143,9 +150,17 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
         effectivelyCompleted 
           ? "bg-completed/10 border-completed/30" 
           : "bg-card/50 hover:bg-card",
-        item.isOptional ? "border-l-4 border-l-amber-400" : ""
+        item.isOptional ? "border-l-4 border-l-amber-400" : "",
+        hasAlternatives ? "border-l-4 border-l-blue-400" : ""
       )}
     >
+      {isInOptionalSection && (
+        <div className="mb-2 text-xs font-medium flex items-center text-amber-600 gap-1">
+          <AlertCircle className="h-3.5 w-3.5" />
+          Só em casos específicos
+        </div>
+      )}
+      
       <div className="flex items-start gap-3 cursor-pointer" onClick={() => onToggle(item.id)}>
         <div 
           className={cn(
