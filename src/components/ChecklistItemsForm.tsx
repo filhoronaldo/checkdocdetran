@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { useFieldArray, Control } from "react-hook-form";
+import { useFieldArray, Control, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
@@ -50,20 +49,25 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
     name: `checklists.${checklistIndex}.items` as any
   });
 
-  const [alternativeGroup, setAlternativeGroup] = useState<string>("");
-
+  // Create a stable alternative group ID
   const addAlternative = (index: number) => {
-    const groupId = `group-${Date.now()}`;
-    setAlternativeGroup(groupId);
+    // Get the current item
+    const currentItem = fields[index] as unknown as FieldItem;
     
-    // Set the current item as part of the alternative group
-    const updatedItem = { 
-      ...(fields[index] as unknown as FieldItem), 
-      alternativeOf: groupId 
-    };
-    update(index, updatedItem);
+    // If the item is already part of an alternative group, use that group ID
+    // Otherwise, create a new unique group ID
+    const groupId = currentItem.alternativeOf || `group-${Date.now()}`;
     
-    // Add a new item as an alternative
+    // Update the current item to be part of the alternative group if it's not already
+    if (!currentItem.alternativeOf) {
+      const updatedItem = { 
+        ...currentItem, 
+        alternativeOf: groupId 
+      };
+      update(index, updatedItem);
+    }
+    
+    // Add a new item as an alternative to the same group
     append({ 
       text: "", 
       observation: "", 
@@ -73,19 +77,21 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
     });
   };
 
-  const isPartOfAlternativeGroup = (item: any, index: number) => {
-    if (!item.alternativeOf) return false;
-    
-    // Check if there are other items with the same alternativeOf
-    return fields.some((field, i) => 
-      i !== index && (field as unknown as FieldItem).alternativeOf === item.alternativeOf
-    );
-  };
-
+  // Helper function to find all items in an alternative group
   const getAlternativeGroupItems = (groupId: string) => {
     return fields
       .map((field, i) => ({ ...field, index: i }))
       .filter(field => (field as unknown as FieldItem).alternativeOf === groupId);
+  };
+
+  // Helper function to check if an item should be displayed in the list
+  const shouldDisplayItem = (item: FieldItem, index: number) => {
+    // If it's not part of an alternative group, always display it
+    if (!item.alternativeOf) return true;
+    
+    // If it's part of an alternative group, only display it if it's the first item in the group
+    const groupItems = getAlternativeGroupItems(item.alternativeOf);
+    return groupItems.length === 0 || groupItems[0].index === index;
   };
 
   return (
@@ -106,15 +112,17 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
 
       {fields.map((item, itemIndex) => {
         const typedItem = item as unknown as FieldItem;
-        // If this isn't the first item in an alternative group, don't show it separately
+        
+        // Get all items in this alternative group (if any)
         const alternativeItems = typedItem.alternativeOf 
           ? getAlternativeGroupItems(typedItem.alternativeOf)
           : [];
         
+        // Check if this is the first item in an alternative group
         const isFirstInAlternativeGroup = alternativeItems.length > 0 && 
           alternativeItems[0].index === itemIndex;
         
-        // Skip rendering if it's part of an alternative group but not the first item
+        // Only render the item if it's not part of an alternative group or if it's the first item in the group
         if (typedItem.alternativeOf && !isFirstInAlternativeGroup) {
           return null;
         }
@@ -157,7 +165,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                 )}
               />
               
-              {/* Add alternative button */}
+              {/* Add alternative button - only show for items that are not already alternatives */}
               {!typedItem.alternativeOf && (
                 <Button
                   type="button"
@@ -209,28 +217,111 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                 <div className="text-xs font-medium text-blue-600">Alternativas (qualquer uma atende):</div>
                 
                 {alternativeItems.slice(1).map((alt) => (
-                  <FormField
-                    key={alt.id}
-                    control={control}
-                    name={`checklists.${checklistIndex}.items.${alt.index}.text`}
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormControl>
-                          <Input placeholder="Alternativa" {...field} className="text-sm" />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => remove(alt.index)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div key={alt.id} className="space-y-2">
+                    <FormField
+                      control={control}
+                      name={`checklists.${checklistIndex}.items.${alt.index}.text`}
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Input placeholder="Alternativa" {...field} className="text-sm" />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => remove(alt.index)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* Observation field for alternative item */}
+                    <FormField
+                      control={control}
+                      name={`checklists.${checklistIndex}.items.${alt.index}.observation`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input placeholder="Observação (opcional)" {...field} className="text-sm" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* Tags for alternative item */}
+                    <FormField
+                      control={control}
+                      name={`checklists.${checklistIndex}.items.${alt.index}.tags`}
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                >
+                                  Adicionar tags
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-56 p-2">
+                                <div className="space-y-2">
+                                  {tagOptions.map(tag => (
+                                    <div key={tag.value} className="flex items-center space-x-2">
+                                      <Checkbox 
+                                        id={`tag-alt-${alt.index}-${tag.value}`}
+                                        checked={field.value?.includes(tag.value as any)}
+                                        onCheckedChange={(checked) => {
+                                          const currentTags = field.value || [];
+                                          const newTags = checked
+                                            ? [...currentTags, tag.value as any]
+                                            : currentTags.filter(t => t !== tag.value);
+                                          field.onChange(newTags);
+                                        }}
+                                      />
+                                      <label 
+                                        htmlFor={`tag-alt-${alt.index}-${tag.value}`}
+                                        className="text-sm cursor-pointer"
+                                      >
+                                        {tag.label}
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          
+                          {field.value && field.value.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {field.value.map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-xs py-0 px-2">
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      field.onChange(field.value.filter(t => t !== tag));
+                                    }}
+                                    className="ml-1 text-xs text-muted-foreground hover:text-destructive"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 ))}
                 
                 <Button
