@@ -73,7 +73,9 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
               "rounded-md p-2 mb-1 flex items-start gap-3 cursor-pointer transition-all duration-300",
               alt.isCompleted 
                 ? "bg-completed/10" 
-                : "bg-card/50 hover:bg-card"
+                : effectivelyCompleted 
+                  ? "bg-card/50"
+                  : "bg-card/50 hover:bg-card"
             )}
             onClick={() => onToggle(alt.id)}
           >
@@ -100,7 +102,11 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
               <div 
                 className={cn(
                   "text-sm transition-colors duration-300",
-                  alt.isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+                  effectivelyCompleted 
+                    ? alt.isCompleted
+                      ? "text-completed line-through"
+                      : "text-muted-foreground line-through"
+                    : "text-foreground"
                 )}
               >
                 {alt.text}
@@ -110,7 +116,11 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
                 <div 
                   className={cn(
                     "text-xs mt-1",
-                    alt.isCompleted ? "text-muted-foreground/70 line-through" : "text-muted-foreground"
+                    effectivelyCompleted 
+                      ? alt.isCompleted
+                        ? "text-completed/70 line-through"
+                        : "text-muted-foreground/70 line-through"
+                      : "text-muted-foreground"
                   )}
                 >
                   {alt.observation}
@@ -142,12 +152,12 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
         <div 
           className={cn(
             "mt-0.5 w-5 h-5 rounded-full flex-shrink-0 border transition-colors duration-300",
-            effectivelyCompleted 
+            item.isCompleted 
               ? "bg-completed border-completed" 
               : "border-muted-foreground/30"
           )}
         >
-          {effectivelyCompleted && (
+          {item.isCompleted && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -163,7 +173,11 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
             <div 
               className={cn(
                 "text-sm transition-colors duration-300 flex-1",
-                effectivelyCompleted ? "text-muted-foreground line-through" : "text-foreground"
+                effectivelyCompleted 
+                  ? item.isCompleted
+                    ? "text-completed line-through"
+                    : "text-muted-foreground line-through"
+                  : "text-foreground"
               )}
             >
               {item.text}
@@ -179,7 +193,11 @@ export default function ChecklistItem({ item, onToggle, alternativeItems = [] }:
             <div 
               className={cn(
                 "text-xs mt-1",
-                effectivelyCompleted ? "text-muted-foreground/70 line-through" : "text-muted-foreground"
+                effectivelyCompleted 
+                  ? item.isCompleted
+                    ? "text-completed/70 line-through"
+                    : "text-muted-foreground/70 line-through"
+                  : "text-muted-foreground"
               )}
             >
               {item.observation}
