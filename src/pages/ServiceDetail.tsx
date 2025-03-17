@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
@@ -187,14 +186,11 @@ export default function ServiceDetail() {
 
   // Group alternative items with their main item
   const getAlternativeItems = (checklist: ChecklistGroup, item: ChecklistItemType) => {
-    // If item is already an alternative, return empty array
+    // Skip if item is already an alternative
     if (item.alternativeOf) return [];
     
     // Get all alternatives for this item
-    return checklist.items.filter(i => 
-      i.alternativeOf === item.id || 
-      (item.alternativeOf && i.alternativeOf === item.alternativeOf && i.id !== item.id)
-    );
+    return checklist.items.filter(i => i.alternativeOf === item.id);
   };
   
   if (!service) {
@@ -356,8 +352,9 @@ export default function ServiceDetail() {
             // Calculate progress for this section (only required items)
             const sectionProgress = calculateProgress(checklist);
             
-            // For displaying items, we need to filter out alternatives to avoid duplication
-            const mainItems = checklist.items.filter(item => !item.alternativeOf);
+            // For displaying items, we need to filter out items that are alternatives to avoid duplication
+            // We only filter out alternatives here, not main items that have alternatives
+            const displayItems = checklist.items.filter(item => !item.alternativeOf);
             
             return (
               <div key={checklist.id} className="space-y-3">
@@ -393,7 +390,7 @@ export default function ServiceDetail() {
                 </div>
                 
                 <AnimatePresence>
-                  {mainItems.map((item) => {
+                  {displayItems.map((item) => {
                     // Get all alternatives for this item
                     const alternatives = getAlternativeItems(checklist, item);
                     
