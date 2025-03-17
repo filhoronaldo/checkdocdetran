@@ -96,7 +96,7 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <div className="text-sm font-medium">Seção Alternativa</div>
+                      <div className="text-sm font-medium">Escolha uma das opções</div>
                     </FormItem>
                   )}
                 />
