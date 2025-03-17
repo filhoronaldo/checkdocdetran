@@ -29,7 +29,7 @@ const TagType = z.enum([
   "Original e Cópia"
 ]);
 
-// Updated schema to support multiple tags, optional items and sections
+// Updated schema to support multiple tags, optional items and sections, and alternative sections
 const formSchema = z.object({
   title: z.string().min(3, "O título precisa ter pelo menos 3 caracteres"),
   category: z.enum(["Veículo", "Habilitação", "Infrações", "Outros"] as const),
@@ -38,13 +38,13 @@ const formSchema = z.object({
     z.object({
       title: z.string().min(1, "O título é obrigatório"),
       isOptional: z.boolean().optional(),
+      isAlternative: z.boolean().optional(),
       items: z.array(
         z.object({
           text: z.string().min(1, "O item não pode estar vazio"),
           observation: z.string().optional(),
           tags: z.array(TagType).optional(),
-          isOptional: z.boolean().optional(),
-          alternativeOf: z.string().optional()
+          isOptional: z.boolean().optional()
         })
       )
     })
@@ -66,6 +66,7 @@ export default function ServiceForm({
     checklists: [{ 
       title: "Documentos Necessários", 
       isOptional: false,
+      isAlternative: false,
       items: [{ text: "", observation: "", tags: [], isOptional: false }] 
     }]
   },
@@ -86,6 +87,7 @@ export default function ServiceForm({
         checklists: [{ 
           title: "Documentos Necessários", 
           isOptional: false,
+          isAlternative: false,
           items: [{ text: "", observation: "", tags: [], isOptional: false }] 
         }]
       });

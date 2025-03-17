@@ -7,23 +7,22 @@ import { cn } from "@/lib/utils";
 interface ChecklistItemProps {
   item: ChecklistItemType;
   onToggle: (id: string) => void;
-  alternativeItems?: ChecklistItemType[];
   isInOptionalSection?: boolean;
+  isInAlternativeSection?: boolean;
+  isSectionCompleted?: boolean;
 }
 
 export default function ChecklistItem({ 
   item, 
   onToggle, 
-  alternativeItems = [], 
-  isInOptionalSection = false 
+  isInOptionalSection = false,
+  isInAlternativeSection = false,
+  isSectionCompleted = false
 }: ChecklistItemProps) {
-  const hasAlternatives = alternativeItems.length > 0;
-  const isAnyAlternativeCompleted = alternativeItems.some(alt => alt.isCompleted);
-  
-  // If this item has alternatives and any of them are completed,
-  // we consider the whole group completed
+  // If this item is in an alternative section and the section is completed,
+  // we should display it as effectively completed even if this specific item is not completed
   const effectivelyCompleted = item.isCompleted || 
-    (hasAlternatives && isAnyAlternativeCompleted);
+    (isInAlternativeSection && isSectionCompleted);
 
   const getTagIcon = (tag: string) => {
     switch (tag) {
@@ -65,80 +64,6 @@ export default function ChecklistItem({
     );
   };
 
-  const renderAlternatives = () => {
-    if (!hasAlternatives) return null;
-
-    return (
-      <div className="ml-6 pl-3 border-l-2 border-gray-200 mt-2 space-y-1">
-        <div className="text-xs text-gray-500 mb-1">Qualquer uma destas opções atende:</div>
-        {alternativeItems.map(alt => (
-          <motion.div
-            key={alt.id}
-            layout
-            className={cn(
-              "rounded-md p-2 mb-1 flex items-start gap-3 cursor-pointer transition-all duration-300",
-              alt.isCompleted 
-                ? "bg-completed/10" 
-                : effectivelyCompleted 
-                  ? "bg-card/50"
-                  : "bg-card/50 hover:bg-card"
-            )}
-            onClick={() => onToggle(alt.id)}
-          >
-            <div 
-              className={cn(
-                "mt-0.5 w-4 h-4 rounded-full flex-shrink-0 border transition-colors duration-300",
-                alt.isCompleted 
-                  ? "bg-completed border-completed" 
-                  : "border-muted-foreground/30"
-              )}
-            >
-              {alt.isCompleted && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                  className="flex items-center justify-center w-full h-full"
-                >
-                  <Check className="h-2.5 w-2.5 text-white" />
-                </motion.div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div 
-                className={cn(
-                  "text-sm transition-colors duration-300",
-                  effectivelyCompleted 
-                    ? alt.isCompleted
-                      ? "text-completed line-through"
-                      : "text-muted-foreground line-through"
-                    : "text-foreground"
-                )}
-              >
-                {alt.text}
-              </div>
-              {renderTags(alt.tags)}
-              {alt.observation && (
-                <div 
-                  className={cn(
-                    "text-xs mt-1",
-                    effectivelyCompleted 
-                      ? alt.isCompleted
-                        ? "text-completed/70 line-through"
-                        : "text-muted-foreground/70 line-through"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {alt.observation}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <motion.div
       layout
@@ -151,7 +76,7 @@ export default function ChecklistItem({
           ? "bg-completed/10 border-completed/30" 
           : "bg-card/50 hover:bg-card",
         item.isOptional ? "border-l-4 border-l-amber-400" : "",
-        hasAlternatives ? "border-l-4 border-l-blue-400" : ""
+        isInAlternativeSection ? "border-l-4 border-l-blue-400" : ""
       )}
     >
       {isInOptionalSection && (
@@ -187,9 +112,7 @@ export default function ChecklistItem({
               className={cn(
                 "text-sm transition-colors duration-300 flex-1",
                 effectivelyCompleted 
-                  ? item.isCompleted
-                    ? "text-completed line-through"
-                    : "text-muted-foreground line-through"
+                  ? "text-completed line-through"
                   : "text-foreground"
               )}
             >
@@ -207,9 +130,7 @@ export default function ChecklistItem({
               className={cn(
                 "text-xs mt-1",
                 effectivelyCompleted 
-                  ? item.isCompleted
-                    ? "text-completed/70 line-through"
-                    : "text-muted-foreground/70 line-through"
+                  ? "text-completed/70 line-through"
                   : "text-muted-foreground"
               )}
             >
@@ -218,8 +139,6 @@ export default function ChecklistItem({
           )}
         </div>
       </div>
-      
-      {renderAlternatives()}
     </motion.div>
   );
 }

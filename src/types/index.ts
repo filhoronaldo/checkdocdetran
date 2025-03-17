@@ -6,7 +6,6 @@ export interface ChecklistItem {
   observation?: string;
   tags?: ('Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia')[];
   isOptional?: boolean;
-  alternativeOf?: string;
 }
 
 export interface ChecklistGroup {
@@ -14,6 +13,7 @@ export interface ChecklistGroup {
   title: string;
   items: ChecklistItem[];
   isOptional?: boolean;
+  isAlternative?: boolean;
 }
 
 export interface Service {
@@ -33,12 +33,12 @@ export interface ServiceFormData {
   checklists: {
     title: string;
     isOptional?: boolean;
+    isAlternative?: boolean;
     items: {
       text: string;
       observation?: string;
       tags?: ('Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia')[];
       isOptional?: boolean;
-      alternativeOf?: string;
     }[];
   }[];
 }

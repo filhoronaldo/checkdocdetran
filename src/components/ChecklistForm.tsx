@@ -31,7 +31,8 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
             append({ 
               title: "", 
               items: [{ text: "", observation: "", tags: [], isOptional: false }],
-              isOptional: false 
+              isOptional: false,
+              isAlternative: false
             });
           }}
           className="flex items-center gap-1"
@@ -45,9 +46,15 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
         {fields.map((checklist, checklistIndex) => (
           <div 
             key={checklist.id} 
-            className={`p-4 border rounded-lg space-y-4 ${checklist.isOptional ? 'border-amber-200 bg-amber-50/30' : 'border-border'}`}
+            className={`p-4 border rounded-lg space-y-4 ${
+              checklist.isAlternative 
+                ? 'border-blue-200 bg-blue-50/30' 
+                : checklist.isOptional 
+                  ? 'border-amber-200 bg-amber-50/30' 
+                  : 'border-border'
+            }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <FormField
                 control={control}
                 name={`checklists.${checklistIndex}.title`}
@@ -61,33 +68,51 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
                 )}
               />
               
-              <FormField
-                control={control}
-                name={`checklists.${checklistIndex}.isOptional`}
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="text-sm font-medium">Seção Opcional</div>
-                  </FormItem>
+              <div className="flex items-center gap-4">
+                <FormField
+                  control={control}
+                  name={`checklists.${checklistIndex}.isOptional`}
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="text-sm font-medium">Seção Opcional</div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={control}
+                  name={`checklists.${checklistIndex}.isAlternative`}
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="text-sm font-medium">Seção Alternativa</div>
+                    </FormItem>
+                  )}
+                />
+                
+                {fields.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => remove(checklistIndex)}
+                    className="text-destructive hover:text-destructive/90"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 )}
-              />
-              
-              {fields.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => remove(checklistIndex)}
-                  className="text-destructive hover:text-destructive/90"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
+              </div>
             </div>
 
             <ChecklistItemsForm 

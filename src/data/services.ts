@@ -25,22 +25,38 @@ export const initialServices: Service[] = [
             text: "ATPV (Autorização para Transferência de Propriedade Veicular)",
             observation: "Pode ser eletrônico ou em papel (CRV antigo)",
             tags: ["Original"],
-            isCompleted: false,
-            alternativeOf: "doc-transfer-1"
-          },
-          {
-            id: uuidv4(),
-            text: "CRV (Certificado de Registro de Veículo)",
-            observation: "Modelo antigo, em papel",
-            tags: ["Original"],
-            isCompleted: false,
-            alternativeOf: "doc-transfer-1"
+            isCompleted: false
           },
           {
             id: uuidv4(),
             text: "Comprovante de Vistoria Detran",
             observation: "Pode ser eletrônico em alguns estados",
             tags: ["Digital"],
+            isCompleted: false
+          }
+        ]
+      },
+      {
+        id: uuidv4(),
+        title: "Identificação",
+        isAlternative: true,
+        items: [
+          {
+            id: uuidv4(),
+            text: "RG",
+            tags: ["Original"],
+            isCompleted: false
+          },
+          {
+            id: uuidv4(),
+            text: "CNH",
+            tags: ["Original"],
+            isCompleted: false
+          },
+          {
+            id: uuidv4(),
+            text: "Passaporte",
+            tags: ["Original"],
             isCompleted: false
           }
         ]
@@ -119,6 +135,31 @@ export const initialServices: Service[] = [
             id: uuidv4(),
             text: "Exame Médico e Psicológico",
             tags: ["Original"],
+            isCompleted: false
+          }
+        ]
+      },
+      {
+        id: uuidv4(),
+        title: "Comprovante de Pagamento",
+        isAlternative: true,
+        items: [
+          {
+            id: uuidv4(),
+            text: "Boleto bancário quitado",
+            tags: ["Original", "Digital"],
+            isCompleted: false
+          },
+          {
+            id: uuidv4(),
+            text: "Comprovante de pagamento via PIX",
+            tags: ["Digital"],
+            isCompleted: false
+          },
+          {
+            id: uuidv4(),
+            text: "Comprovante de transferência bancária",
+            tags: ["Digital"],
             isCompleted: false
           }
         ]
@@ -255,6 +296,25 @@ export const initialServices: Service[] = [
             text: "Provas que fundamentem o recurso (se houver)",
             isOptional: true,
             tags: ["Físico", "Digital"],
+            isCompleted: false
+          }
+        ]
+      },
+      {
+        id: uuidv4(),
+        title: "Anexos Opcionais",
+        isOptional: true,
+        items: [
+          {
+            id: uuidv4(),
+            text: "Fotografias do local da infração",
+            tags: ["Digital"],
+            isCompleted: false
+          },
+          {
+            id: uuidv4(),
+            text: "Declaração de testemunhas",
+            tags: ["Físico"],
             isCompleted: false
           }
         ]

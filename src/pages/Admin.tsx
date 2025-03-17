@@ -49,13 +49,13 @@ export default function Admin() {
         id: uuidv4(),
         title: checklist.title,
         isOptional: checklist.isOptional,
+        isAlternative: checklist.isAlternative,
         items: checklist.items.map(item => ({
           id: uuidv4(),
           text: item.text,
           observation: item.observation || undefined,
           tags: item.tags || undefined,
           isOptional: item.isOptional,
-          alternativeOf: item.alternativeOf,
           isCompleted: false
         }))
       }))
@@ -82,6 +82,7 @@ export default function Admin() {
           id: existingGroup?.id || uuidv4(),
           title: checklist.title,
           isOptional: checklist.isOptional,
+          isAlternative: checklist.isAlternative,
           items: checklist.items.map((item, index) => {
             // Try to preserve existing items and their completion state
             const existingItem = existingGroup?.items[index];
@@ -91,7 +92,6 @@ export default function Admin() {
               observation: item.observation || undefined,
               tags: item.tags || undefined,
               isOptional: item.isOptional,
-              alternativeOf: item.alternativeOf,
               isCompleted: existingItem?.isCompleted || false
             };
           })
@@ -118,12 +118,12 @@ export default function Admin() {
       checklists: serviceToEdit.checklists.map(checklist => ({
         title: checklist.title,
         isOptional: checklist.isOptional,
+        isAlternative: checklist.isAlternative,
         items: checklist.items.map(item => ({
           text: item.text,
           observation: item.observation,
           tags: item.tags,
           isOptional: item.isOptional,
-          alternativeOf: item.alternativeOf
         }))
       }))
     };

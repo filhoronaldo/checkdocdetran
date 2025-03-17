@@ -49,6 +49,19 @@ export default function ServiceDetail() {
     return (completedRequiredItems / requiredItems.length) * 100;
   };
 
+  // Check if a section is completed
+  const isSectionCompleted = (checklist: ChecklistGroup) => {
+    // If it's an alternative section, check if any item is completed
+    if (checklist.isAlternative) {
+      return checklist.items.some(item => item.isCompleted);
+    } 
+    
+    // Otherwise, all required items must be completed
+    const requiredItems = checklist.items.filter(item => !item.isOptional);
+    return requiredItems.length > 0 && 
+           requiredItems.every(item => item.isCompleted);
+  };
+
   useEffect(() => {
     const foundService = services.find(s => s.id === id);
     if (foundService) {
@@ -57,16 +70,20 @@ export default function ServiceDetail() {
       // Only count required items and non-optional sections
       const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
       
-      let totalRequiredItems = 0;
-      let completedRequiredItems = 0;
-      
-      requiredSections.forEach(checklist => {
-        const requiredItems = checklist.items.filter(item => !item.isOptional);
-        totalRequiredItems += requiredItems.length;
-        completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
+      // Check if all required sections are completed
+      const allSectionsCompleted = requiredSections.every(section => {
+        if (section.isAlternative) {
+          // For alternative sections, any completed item completes the section
+          return section.items.some(item => item.isCompleted);
+        } else {
+          // For regular sections, all required items must be completed
+          const requiredItems = section.items.filter(item => !item.isOptional);
+          return requiredItems.length > 0 && 
+                 requiredItems.every(item => item.isCompleted);
+        }
       });
       
-      setAllCompleted(totalRequiredItems > 0 && completedRequiredItems === totalRequiredItems);
+      setAllCompleted(allSectionsCompleted);
     }
   }, [id, services]);
 
@@ -118,18 +135,23 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    // Recalculate all completed status - only for required items in required sections
+    // Recalculate all completed status
     const requiredSections = updatedService.checklists.filter(checklist => !checklist.isOptional);
-    let totalRequiredItems = 0;
-    let completedRequiredItems = 0;
     
-    requiredSections.forEach(checklist => {
-      const requiredItems = checklist.items.filter(item => !item.isOptional);
-      totalRequiredItems += requiredItems.length;
-      completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
+    // Check if all required sections are completed
+    const allSectionsCompleted = requiredSections.every(section => {
+      if (section.isAlternative) {
+        // For alternative sections, any completed item completes the section
+        return section.items.some(item => item.isCompleted);
+      } else {
+        // For regular sections, all required items must be completed
+        const requiredItems = section.items.filter(item => !item.isOptional);
+        return requiredItems.length > 0 && 
+               requiredItems.every(item => item.isCompleted);
+      }
     });
     
-    setAllCompleted(totalRequiredItems > 0 && completedRequiredItems === totalRequiredItems);
+    setAllCompleted(allSectionsCompleted);
   };
   
   const resetAllItems = () => {
@@ -183,15 +205,6 @@ export default function ServiceDetail() {
       toast.error("Seu navegador não suporta esta funcionalidade!");
     }
   };
-
-  // Group alternative items with their main item
-  const getAlternativeItems = (checklist: ChecklistGroup, item: ChecklistItemType) => {
-    // Skip if item is already an alternative
-    if (item.alternativeOf) return [];
-    
-    // Get all alternatives for this item
-    return checklist.items.filter(i => i.alternativeOf === item.id);
-  };
   
   if (!service) {
     return (
@@ -210,19 +223,24 @@ export default function ServiceDetail() {
     );
   }
   
-  // Calculate overall progress (only required items in required sections)
+  // Calculate overall progress
   const requiredSections = service.checklists.filter(checklist => !checklist.isOptional);
-  let totalRequiredItems = 0;
-  let completedRequiredItems = 0;
   
-  requiredSections.forEach(checklist => {
-    const requiredItems = checklist.items.filter(item => !item.isOptional);
-    totalRequiredItems += requiredItems.length;
-    completedRequiredItems += requiredItems.filter(item => item.isCompleted).length;
-  });
+  // Count how many required sections are completed
+  const completedRequiredSections = requiredSections.filter(section => {
+    if (section.isAlternative) {
+      // For alternative sections, any completed item completes the section
+      return section.items.some(item => item.isCompleted);
+    } else {
+      // For regular sections, all required items must be completed
+      const requiredItems = section.items.filter(item => !item.isOptional);
+      return requiredItems.length > 0 && 
+             requiredItems.every(item => item.isCompleted);
+    }
+  }).length;
   
-  const progressPercentage = totalRequiredItems > 0 
-    ? (completedRequiredItems / totalRequiredItems) * 100 
+  const progressPercentage = requiredSections.length > 0 
+    ? (completedRequiredSections / requiredSections.length) * 100 
     : 0;
   
   return (
@@ -313,7 +331,7 @@ export default function ServiceDetail() {
               {service.category}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {completedRequiredItems} de {totalRequiredItems} documentos obrigatórios verificados
+              {completedRequiredSections} de {requiredSections.length} seções obrigatórias completadas
             </span>
           </div>
           
@@ -338,9 +356,9 @@ export default function ServiceDetail() {
                 <Check className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="font-medium">Todos os documentos obrigatórios verificados!</h3>
+                <h3 className="font-medium">Todas as seções obrigatórias foram completadas!</h3>
                 <p className="text-sm text-muted-foreground">
-                  Você completou a verificação de todos os documentos obrigatórios para este serviço.
+                  Você completou a verificação de todas as seções obrigatórias para este serviço.
                 </p>
               </div>
             </Card>
@@ -349,30 +367,37 @@ export default function ServiceDetail() {
         
         <div className="space-y-8">
           {service.checklists.map((checklist) => {
-            // Calculate progress for this section (only required items)
+            // Calculate progress for this section
             const sectionProgress = calculateProgress(checklist);
             
-            // For displaying items, we need to filter out items that are alternatives to avoid duplication
-            // We only filter out alternatives here, not main items that have alternatives
-            const displayItems = checklist.items.filter(item => !item.alternativeOf);
+            // Check if section is completed
+            const isCompleted = isSectionCompleted(checklist);
             
             return (
               <div key={checklist.id} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className={cn(
                     "text-xl font-semibold flex items-center gap-2",
-                    checklist.isOptional ? "text-amber-700" : ""
+                    checklist.isOptional ? "text-amber-700" : "",
+                    checklist.isAlternative ? "text-blue-700" : ""
                   )}>
                     {checklist.title}
-                    {checklist.isOptional && (
-                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                        Só em casos específicos
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {checklist.isOptional && (
+                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                          Só em casos específicos
+                        </span>
+                      )}
+                      {checklist.isAlternative && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          Seção alternativa
+                        </span>
+                      )}
+                    </div>
                   </h3>
                   
                   {/* Progress bar for the section */}
-                  {checklist.items.filter(item => !item.isOptional).length > 0 && (
+                  {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
                         {Math.round(sectionProgress)}%
@@ -387,23 +412,32 @@ export default function ServiceDetail() {
                       </div>
                     </div>
                   )}
+                  
+                  {checklist.isAlternative && (
+                    <div className="flex items-center">
+                      <span className={cn(
+                        "text-xs px-2 py-1 rounded-full",
+                        isCompleted 
+                          ? "bg-completed/20 text-completed" 
+                          : "bg-muted text-muted-foreground"
+                      )}>
+                        {isCompleted ? "Completo" : "Selecione um item"}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 <AnimatePresence>
-                  {displayItems.map((item) => {
-                    // Get all alternatives for this item
-                    const alternatives = getAlternativeItems(checklist, item);
-                    
-                    return (
-                      <ChecklistItem 
-                        key={item.id} 
-                        item={item} 
-                        onToggle={(itemId) => handleToggleItem(checklist.id, itemId)}
-                        alternativeItems={alternatives}
-                        isInOptionalSection={checklist.isOptional}
-                      />
-                    );
-                  })}
+                  {checklist.items.map((item) => (
+                    <ChecklistItem 
+                      key={item.id} 
+                      item={item} 
+                      onToggle={(itemId) => handleToggleItem(checklist.id, itemId)}
+                      isInOptionalSection={checklist.isOptional}
+                      isInAlternativeSection={checklist.isAlternative}
+                      isSectionCompleted={isCompleted}
+                    />
+                  ))}
                 </AnimatePresence>
               </div>
             );
