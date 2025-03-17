@@ -12,7 +12,7 @@ export function generateInitialDataSQL(): string {
     // Insert service
     sql += `
 -- Service: ${service.title}
-INSERT INTO services (id, title, category, description)
+INSERT INTO ckdt_services (id, title, category, description)
 VALUES ('${service.id}', '${service.title.replace(/'/g, "''")}', '${service.category}', '${service.description.replace(/'/g, "''")}');
 `;
 
@@ -20,19 +20,19 @@ VALUES ('${service.id}', '${service.title.replace(/'/g, "''")}', '${service.cate
     service.checklists.forEach(checklist => {
       sql += `
 -- Checklist: ${checklist.title}
-INSERT INTO checklists (id, service_id, title, is_optional, is_alternative)
+INSERT INTO ckdt_checklists (id, service_id, title, is_optional, is_alternative)
 VALUES ('${checklist.id}', '${service.id}', '${checklist.title.replace(/'/g, "''")}', ${checklist.isOptional ? 'TRUE' : 'FALSE'}, ${checklist.isAlternative ? 'TRUE' : 'FALSE'});
 `;
 
       // Insert checklist items
       checklist.items.forEach(item => {
         const tagsArray = item.tags ? 
-          `ARRAY[${item.tags.map(tag => `'${tag}'::tag_type`).join(', ')}]` : 
+          `ARRAY[${item.tags.map(tag => `'${tag}'::ckdt_tag_type`).join(', ')}]` : 
           'NULL';
           
         sql += `
 -- Item: ${item.text}
-INSERT INTO checklist_items (id, checklist_id, text, observation, tags, is_optional)
+INSERT INTO ckdt_checklist_items (id, checklist_id, text, observation, tags, is_optional)
 VALUES ('${item.id}', '${checklist.id}', '${item.text.replace(/'/g, "''")}', ${item.observation ? `'${item.observation.replace(/'/g, "''")}'` : 'NULL'}, ${tagsArray}, ${item.isOptional ? 'TRUE' : 'FALSE'});
 `;
       });
