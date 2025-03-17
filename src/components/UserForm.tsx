@@ -3,8 +3,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,26 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-
-// Define user type
-interface User {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-  isAdmin: boolean;
-}
-
-// Initial admin user for reference
-const initialUsers: User[] = [
-  {
-    id: uuidv4(),
-    email: "email@ronaldofilho.com",
-    password: "Ron3951045@#$%",
-    name: "Ronaldo Filho",
-    isAdmin: true
-  }
-];
+import supabase from "@/lib/supabase";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -58,7 +37,6 @@ interface UserFormProps {
 }
 
 export default function UserForm({ onSuccess }: UserFormProps) {
-  const [users, setUsers] = useLocalStorage<User[]>("users", initialUsers);
   const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<FormValues>({
@@ -75,24 +53,29 @@ export default function UserForm({ onSuccess }: UserFormProps) {
     setIsLoading(true);
     
     try {
-      // Check if email already exists
-      const emailExists = users.some(user => user.email === data.email);
+      // Check if current user is admin (can only be done server-side)
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (emailExists) {
-        toast.error("Este email já está em uso!");
+      if (!session) {
+        toast.error("Você precisa estar logado para adicionar usuários");
         return;
       }
       
-      // Add new user
-      const newUser: User = {
-        id: uuidv4(),
-        name: data.name,
+      // Create user
+      const { data: userData, error } = await supabase.auth.admin.createUser({
         email: data.email,
         password: data.password,
-        isAdmin: data.isAdmin
-      };
+        email_confirm: true,
+        user_metadata: {
+          name: data.name
+        },
+        role: data.isAdmin ? 'admin' : 'authenticated'
+      });
       
-      setUsers([...users, newUser]);
+      if (error) {
+        throw error;
+      }
+      
       toast.success("Usuário criado com sucesso!");
       
       // Reset form
@@ -100,6 +83,8 @@ export default function UserForm({ onSuccess }: UserFormProps) {
       
       // Call success callback
       onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao criar usuário");
     } finally {
       setIsLoading(false);
     }

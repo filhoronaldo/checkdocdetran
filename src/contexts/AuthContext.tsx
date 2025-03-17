@@ -1,24 +1,9 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { User, AuthContextType } from "@/types/auth";
 import { toast } from "sonner";
-
-// Initial admin user
-const initialUsers = [
-  {
-    id: uuidv4(),
-    email: "email@ronaldofilho.com",
-    password: "Ron3951045@#$%", // In a real app, this would be hashed
-    name: "Ronaldo Filho",
-    isAdmin: true
-  }
-];
-
-interface StoredUser extends User {
-  password: string;
-}
+import supabase from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -29,51 +14,124 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useLocalStorage<StoredUser[]>("users", initialUsers);
-  const [currentUser, setCurrentUser] = useLocalStorage<User | null>("currentUser", null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if we have stored users, if not, initialize with the default admin
-    if (users.length === 0) {
-      setUsers(initialUsers);
-    }
+    const session = supabase.auth.getSession();
     
-    // Simulate auth check loading
-    const timer = setTimeout(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data } = await session;
+      
+      if (data.session) {
+        const { data: userData } = await supabase
+          .from('auth.users')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        if (userData) {
+          setUser({
+            id: data.session.user.id,
+            email: data.session.user.email || '',
+            name: userData.user_metadata?.name || '',
+            isAdmin: userData.role === 'admin'
+          });
+        }
+      }
+      
       setIsLoading(false);
-    }, 500);
+    };
     
-    return () => clearTimeout(timer);
+    checkUser();
+    
+    // Set up auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const { data: userData } = await supabase
+          .from('auth.users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (userData) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: userData.user_metadata?.name || '',
+            isAdmin: userData.role === 'admin'
+          });
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+    
+    return () => {
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      // Create a user object without the password to store in context
-      const { password: _, ...userWithoutPassword } = user;
-      setCurrentUser(userWithoutPassword);
-      toast.success("Login realizado com sucesso!");
-      return true;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data.user && data.session) {
+        // Check if user is admin
+        const { data: userData } = await supabase
+          .from('auth.users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (userData) {
+          setUser({
+            id: data.user.id,
+            email: data.user.email || '',
+            name: userData.user_metadata?.name || '',
+            isAdmin: userData.role === 'admin'
+          });
+        }
+        
+        toast.success("Login realizado com sucesso!");
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      toast.error("Email ou senha inválidos!");
+      return false;
     }
-    
-    toast.error("Email ou senha inválidos!");
-    return false;
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    toast.success("Logout realizado com sucesso!");
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    
+    if (!error) {
+      setUser(null);
+      toast.success("Logout realizado com sucesso!");
+    } else {
+      toast.error("Erro ao fazer logout!");
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user: currentUser,
+        user,
         login,
         logout,
-        isAuthenticated: !!currentUser,
+        isAuthenticated: !!user,
         isLoading
       }}
     >
@@ -84,41 +142,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => useContext(AuthContext);
 
-export const addUser = (user: Omit<StoredUser, "id">) => {
-  const [users, setUsers] = useLocalStorage<StoredUser[]>("users", initialUsers);
+// Admin function to get all users (requires admin access)
+export const getAllUsers = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
   
-  const newUser: StoredUser = {
-    ...user,
-    id: uuidv4()
-  };
+  if (!session) {
+    toast.error("Você precisa estar logado para acessar esta função");
+    return [];
+  }
   
-  setUsers([...users, newUser]);
-  return newUser;
+  // Check if user is admin
+  const { data: currentUser } = await supabase
+    .from('auth.users')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+    
+  if (!currentUser || currentUser.role !== 'admin') {
+    toast.error("Você não tem permissão para acessar esta função");
+    return [];
+  }
+  
+  // Get all users
+  const { data: users, error } = await supabase
+    .from('auth.users')
+    .select('*');
+    
+  if (error) {
+    toast.error("Erro ao buscar usuários");
+    return [];
+  }
+  
+  return users.map(user => ({
+    id: user.id,
+    email: user.email || '',
+    name: user.user_metadata?.name || '',
+    isAdmin: user.role === 'admin'
+  }));
 };
 
-export const removeUser = (userId: string) => {
-  const [users, setUsers] = useLocalStorage<StoredUser[]>("users", initialUsers);
-  const [currentUser] = useLocalStorage<User | null>("currentUser", null);
+// Admin function to remove a user (requires admin access)
+export const removeUser = async (userId: string) => {
+  const { data: { session } } = await supabase.auth.getSession();
   
-  if (currentUser?.id === userId) {
+  if (!session) {
+    toast.error("Você precisa estar logado para acessar esta função");
+    return false;
+  }
+  
+  // Check if user is admin
+  const { data: currentUser } = await supabase
+    .from('auth.users')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+    
+  if (!currentUser || currentUser.role !== 'admin') {
+    toast.error("Você não tem permissão para acessar esta função");
+    return false;
+  }
+  
+  // Check if trying to remove themselves
+  if (userId === session.user.id) {
     toast.error("Não é possível remover o usuário que está logado!");
     return false;
   }
   
-  const updatedUsers = users.filter(user => user.id !== userId);
+  // Remove user
+  const { error } = await supabase.auth.admin.deleteUser(userId);
   
-  if (updatedUsers.length === users.length) {
-    toast.error("Usuário não encontrado!");
+  if (error) {
+    toast.error("Erro ao remover usuário");
     return false;
   }
   
-  setUsers(updatedUsers);
   toast.success("Usuário removido com sucesso!");
   return true;
-};
-
-export const getAllUsers = () => {
-  const [users] = useLocalStorage<StoredUser[]>("users", initialUsers);
-  // Return users without passwords
-  return users.map(({ password, ...user }) => user);
 };

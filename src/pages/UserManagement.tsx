@@ -1,10 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, getAllUsers, removeUser } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Trash2, UserCog } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { User } from "@/types/auth";
 import AnimatedTransition from "@/components/AnimatedTransition";
 import {
@@ -32,12 +32,31 @@ import UserForm from "@/components/UserForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function UserManagement() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>(getAllUsers());
+  const [users, setUsers] = useState<User[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  if (isLoading) {
+  const fetchUsers = async () => {
+    setIsRefreshing(true);
+    try {
+      const users = await getAllUsers();
+      setUsers(users);
+    } catch (error) {
+      toast.error("Erro ao buscar usuários");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && user?.isAdmin) {
+      fetchUsers();
+    }
+  }, [isAuthenticated, isLoading, user]);
+  
+  if (isLoading || isRefreshing) {
     return (
       <Layout>
         <div className="flex justify-center items-center min-h-[60vh]">
@@ -52,14 +71,16 @@ export default function UserManagement() {
     return null;
   }
   
-  const refreshUsers = () => {
-    setUsers(getAllUsers());
-  };
+  if (!user?.isAdmin) {
+    navigate("/");
+    toast.error("Você não tem permissão para acessar esta página");
+    return null;
+  }
   
-  const handleRemoveUser = (userId: string) => {
-    const success = removeUser(userId);
+  const handleRemoveUser = async (userId: string) => {
+    const success = await removeUser(userId);
     if (success) {
-      refreshUsers();
+      fetchUsers();
     }
   };
   
@@ -96,7 +117,7 @@ export default function UserManagement() {
                   <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                 </DialogHeader>
                 <UserForm onSuccess={() => {
-                  refreshUsers();
+                  fetchUsers();
                   setFormOpen(false);
                 }} />
               </DialogContent>
