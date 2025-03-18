@@ -28,7 +28,7 @@ export default function Login() {
       console.log("Auth state changed - User:", user);
       console.log("Is admin:", user.isAdmin);
       
-      // Check if user is admin
+      // Redirect based on admin status
       if (user.isAdmin) {
         toast.success(`Bem-vindo, ${user.name || user.email}!`);
         navigate(from);
@@ -47,8 +47,8 @@ export default function Login() {
       const success = await login(email, password);
       
       if (success) {
-        console.log("Login successful, waiting for auth state to update");
-        // The redirect will be handled by the useEffect above when auth state updates
+        console.log("Login successful");
+        // The redirect will be handled by the useEffect above
       } else {
         toast.error("Falha no login. Verifique suas credenciais.");
         setIsLoading(false);
