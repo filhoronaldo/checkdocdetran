@@ -18,25 +18,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const session = supabase.auth.getSession();
-    
     // Check if user is already logged in
     const checkUser = async () => {
-      const { data } = await session;
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (data.session) {
-        const { data: userData } = await supabase
-          .from('auth.users')
-          .select('*')
-          .eq('id', data.session.user.id)
-          .single();
-          
+      if (session) {
+        // Get user metadata and role
+        const { data: { user: userData } } = await supabase.auth.getUser();
+        
         if (userData) {
+          const isAdmin = userData.app_metadata?.role === 'admin';
+          
           setUser({
-            id: data.session.user.id,
-            email: data.session.user.email || '',
+            id: userData.id,
+            email: userData.email || '',
             name: userData.user_metadata?.name || '',
-            isAdmin: userData.role === 'admin'
+            isAdmin: isAdmin
           });
         }
       }
@@ -49,18 +46,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        const { data: userData } = await supabase
-          .from('auth.users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-          
+        // Get user metadata and role
+        const { data: { user: userData } } = await supabase.auth.getUser();
+        
         if (userData) {
+          const isAdmin = userData.app_metadata?.role === 'admin';
+          
           setUser({
-            id: session.user.id,
-            email: session.user.email || '',
+            id: userData.id,
+            email: userData.email || '',
             name: userData.user_metadata?.name || '',
-            isAdmin: userData.role === 'admin'
+            isAdmin: isAdmin
           });
         }
       } else if (event === 'SIGNED_OUT') {
@@ -88,20 +84,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data.user && data.session) {
         // Check if user is admin
-        const { data: userData } = await supabase
-          .from('auth.users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (userData) {
-          setUser({
-            id: data.user.id,
-            email: data.user.email || '',
-            name: userData.user_metadata?.name || '',
-            isAdmin: userData.role === 'admin'
-          });
-        }
+        const isAdmin = data.user.app_metadata?.role === 'admin';
+        
+        setUser({
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || '',
+          isAdmin: isAdmin
+        });
         
         toast.success("Login realizado com sucesso!");
         return true;
@@ -151,33 +141,27 @@ export const getAllUsers = async () => {
     return [];
   }
   
-  // Check if user is admin
-  const { data: currentUser } = await supabase
-    .from('auth.users')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
-    
-  if (!currentUser || currentUser.role !== 'admin') {
+  // Get current user info
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  
+  if (!currentUser || currentUser.app_metadata?.role !== 'admin') {
     toast.error("Você não tem permissão para acessar esta função");
     return [];
   }
   
   // Get all users
-  const { data: users, error } = await supabase
-    .from('auth.users')
-    .select('*');
-    
+  const { data: users, error } = await supabase.auth.admin.listUsers();
+  
   if (error) {
     toast.error("Erro ao buscar usuários");
     return [];
   }
   
-  return users.map(user => ({
+  return users.users.map(user => ({
     id: user.id,
     email: user.email || '',
     name: user.user_metadata?.name || '',
-    isAdmin: user.role === 'admin'
+    isAdmin: user.app_metadata?.role === 'admin'
   }));
 };
 
@@ -190,14 +174,10 @@ export const removeUser = async (userId: string) => {
     return false;
   }
   
-  // Check if user is admin
-  const { data: currentUser } = await supabase
-    .from('auth.users')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
-    
-  if (!currentUser || currentUser.role !== 'admin') {
+  // Get current user info
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  
+  if (!currentUser || currentUser.app_metadata?.role !== 'admin') {
     toast.error("Você não tem permissão para acessar esta função");
     return false;
   }

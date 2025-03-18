@@ -53,7 +53,7 @@ export default function UserForm({ onSuccess }: UserFormProps) {
     setIsLoading(true);
     
     try {
-      // Check if current user is admin (can only be done server-side)
+      // Check if current user is admin
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -61,7 +61,7 @@ export default function UserForm({ onSuccess }: UserFormProps) {
         return;
       }
       
-      // Create user
+      // Create user using admin API
       const { data: userData, error } = await supabase.auth.admin.createUser({
         email: data.email,
         password: data.password,
@@ -69,7 +69,9 @@ export default function UserForm({ onSuccess }: UserFormProps) {
         user_metadata: {
           name: data.name
         },
-        role: data.isAdmin ? 'admin' : 'authenticated'
+        app_metadata: {
+          role: data.isAdmin ? 'admin' : 'user'
+        }
       });
       
       if (error) {
