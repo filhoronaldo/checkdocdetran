@@ -61,7 +61,14 @@ export default function UserForm({ onSuccess }: UserFormProps) {
         return;
       }
       
-      // Create user using admin API
+      console.log("Creating user with data:", {
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        isAdmin: data.isAdmin
+      });
+      
+      // Create user
       const { data: userData, error } = await supabase.auth.admin.createUser({
         email: data.email,
         password: data.password,
@@ -70,6 +77,8 @@ export default function UserForm({ onSuccess }: UserFormProps) {
           name: data.name
         },
         app_metadata: {
+          provider: "email",
+          providers: ["email"],
           role: data.isAdmin ? 'admin' : 'user'
         }
       });
@@ -86,6 +95,7 @@ export default function UserForm({ onSuccess }: UserFormProps) {
       // Call success callback
       onSuccess();
     } catch (error: any) {
+      console.error("Error creating user:", error);
       toast.error(error.message || "Erro ao criar usuário");
     } finally {
       setIsLoading(false);

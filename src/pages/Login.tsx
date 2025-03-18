@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -9,17 +9,31 @@ import { ArrowLeft, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import AnimatedTransition from "@/components/AnimatedTransition";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Get the return URL from location state or default to home
   const from = (location.state as { from?: string })?.from || "/";
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Check if user is admin
+      if (user.isAdmin) {
+        toast.success(`Bem-vindo, ${user.name || user.email}!`);
+        navigate(from);
+      } else {
+        toast.error("Acesso restrito a administradores");
+      }
+    }
+  }, [isAuthenticated, user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,9 +41,16 @@ export default function Login() {
     
     try {
       const success = await login(email, password);
+      
       if (success) {
-        navigate(from);
+        // Authentication handled in the useEffect above
+        console.log("Login successful");
+      } else {
+        toast.error("Falha no login. Verifique suas credenciais.");
       }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("Ocorreu um erro durante o login. Tente novamente.");
     } finally {
       setIsLoading(false);
     }

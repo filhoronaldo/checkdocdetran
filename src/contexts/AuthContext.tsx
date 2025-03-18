@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { User, AuthContextType } from "@/types/auth";
 import { toast } from "sonner";
@@ -17,6 +16,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper function to extract user data
+  const extractUserData = (userData: any): User | null => {
+    if (!userData) return null;
+    
+    // Check if role is in app_metadata.role
+    const isAdmin = userData.app_metadata?.role === 'admin';
+    
+    console.log("User data:", userData);
+    console.log("App metadata:", userData.app_metadata);
+    console.log("Is admin:", isAdmin);
+    
+    return {
+      id: userData.id,
+      email: userData.email || '',
+      name: userData.user_metadata?.name || '',
+      isAdmin: isAdmin
+    };
+  };
+
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
@@ -27,14 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { user: userData } } = await supabase.auth.getUser();
         
         if (userData) {
-          const isAdmin = userData.app_metadata?.role === 'admin';
-          
-          setUser({
-            id: userData.id,
-            email: userData.email || '',
-            name: userData.user_metadata?.name || '',
-            isAdmin: isAdmin
-          });
+          setUser(extractUserData(userData));
         }
       }
       
@@ -50,14 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { user: userData } } = await supabase.auth.getUser();
         
         if (userData) {
-          const isAdmin = userData.app_metadata?.role === 'admin';
-          
-          setUser({
-            id: userData.id,
-            email: userData.email || '',
-            name: userData.user_metadata?.name || '',
-            isAdmin: isAdmin
-          });
+          setUser(extractUserData(userData));
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -83,15 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user && data.session) {
-        // Check if user is admin
-        const isAdmin = data.user.app_metadata?.role === 'admin';
-        
-        setUser({
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.name || '',
-          isAdmin: isAdmin
-        });
+        // Extract user data
+        setUser(extractUserData(data.user));
         
         toast.success("Login realizado com sucesso!");
         return true;
@@ -99,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return false;
     } catch (error) {
+      console.error("Login error:", error);
       toast.error("Email ou senha inválidos!");
       return false;
     }
