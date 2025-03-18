@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { User, AuthContextType } from "@/types/auth";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const extractUserData = (userData: any): User | null => {
     if (!userData) return null;
     
-    // Check if role is in app_metadata.role
+    // Check for admin role in app_metadata
     const isAdmin = userData.app_metadata?.role === 'admin';
     
     console.log("User data:", userData);
@@ -38,32 +39,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Get user metadata and role
-        const { data: { user: userData } } = await supabase.auth.getUser();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (userData) {
-          setUser(extractUserData(userData));
+        if (session) {
+          // Get user metadata and role
+          const { data: { user: userData } } = await supabase.auth.getUser();
+          
+          if (userData) {
+            const extractedUser = extractUserData(userData);
+            console.log("Setting user on initial check:", extractedUser);
+            setUser(extractedUser);
+          }
         }
+      } catch (error) {
+        console.error("Error checking user session:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     checkUser();
     
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event);
+      
       if (event === 'SIGNED_IN' && session) {
-        // Get user metadata and role
-        const { data: { user: userData } } = await supabase.auth.getUser();
-        
-        if (userData) {
-          setUser(extractUserData(userData));
+        try {
+          // Get user metadata and role
+          const { data: { user: userData } } = await supabase.auth.getUser();
+          
+          if (userData) {
+            const extractedUser = extractUserData(userData);
+            console.log("Setting user after sign in:", extractedUser);
+            setUser(extractedUser);
+          }
+        } catch (error) {
+          console.error("Error getting user data after sign in:", error);
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log("User signed out");
         setUser(null);
       }
     });
@@ -87,10 +103,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data.user && data.session) {
-        // Extract user data
-        setUser(extractUserData(data.user));
+        // Extract user data including admin status
+        const userData = extractUserData(data.user);
+        console.log("Login successful, user data:", userData);
         
-        toast.success("Login realizado com sucesso!");
+        // The auth state change listener will set the user
         return true;
       }
       
@@ -103,12 +120,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (!error) {
-      setUser(null);
-      toast.success("Logout realizado com sucesso!");
-    } else {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (!error) {
+        setUser(null);
+        toast.success("Logout realizado com sucesso!");
+      } else {
+        toast.error("Erro ao fazer logout!");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
       toast.error("Erro ao fazer logout!");
     }
   };

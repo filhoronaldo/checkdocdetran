@@ -25,6 +25,9 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log("Auth state changed - User:", user);
+      console.log("Is admin:", user.isAdmin);
+      
       // Check if user is admin
       if (user.isAdmin) {
         toast.success(`Bem-vindo, ${user.name || user.email}!`);
@@ -40,18 +43,19 @@ export default function Login() {
     setIsLoading(true);
     
     try {
+      console.log("Attempting login with:", email);
       const success = await login(email, password);
       
       if (success) {
-        // Authentication handled in the useEffect above
-        console.log("Login successful");
+        console.log("Login successful, waiting for auth state to update");
+        // The redirect will be handled by the useEffect above when auth state updates
       } else {
         toast.error("Falha no login. Verifique suas credenciais.");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Ocorreu um erro durante o login. Tente novamente.");
-    } finally {
       setIsLoading(false);
     }
   };
