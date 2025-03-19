@@ -6,19 +6,22 @@ import { Service, ServiceFormData, ServiceCategory } from "@/types";
 import { initialServices } from "@/data/services";
 import Layout from "@/components/Layout";
 import ServiceForm from "@/components/ServiceForm";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AnimatedTransition from "@/components/AnimatedTransition";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 
 export default function Admin() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const isDuplicating = location.state?.isDuplicating || false;
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
   const { isAuthenticated, isLoading } = useAuth();
-  const isEditMode = !!id;
-
+  const isEditMode = !!id && !isDuplicating;
+  
   // Check if user is authenticated
   if (isLoading) {
     return (
@@ -35,7 +38,7 @@ export default function Admin() {
     return null;
   }
 
-  const serviceToEdit = isEditMode 
+  const serviceToEdit = id 
     ? services.find(service => service.id === id) 
     : undefined;
 
@@ -61,16 +64,25 @@ export default function Admin() {
       }))
     };
 
-    setServices([...services, newService]);
-    toast.success("Serviço criado com sucesso!");
-    navigate("/");
+    try {
+      const updatedServices = [...services, newService];
+      setServices(updatedServices);
+      localStorage.setItem('services', JSON.stringify(updatedServices));
+      console.log('Service saved:', newService);
+      console.log('Updated services:', updatedServices);
+      toast.success("Serviço criado com sucesso!");
+      navigate("/");
+    } catch (error) {
+      console.error('Error saving service:', error);
+      toast.error("Erro ao salvar o serviço. Tente novamente.");
+    }
   };
 
   const handleUpdateService = (data: ServiceFormData) => {
     if (!id) return;
 
     const updatedService: Service = {
-      id,
+      id: isDuplicating ? uuidv4() : id,
       title: data.title,
       category: data.category,
       description: data.description,
@@ -99,20 +111,38 @@ export default function Admin() {
       })
     };
 
-    const updatedServices = services.map(service => 
-      service.id === id ? updatedService : service
-    );
-
-    setServices(updatedServices);
-    toast.success("Serviço atualizado com sucesso!");
-    navigate(`/service/${id}`);
+    try {
+      let updatedServices;
+      
+      if (isDuplicating) {
+        // Create a new service (duplicate)
+        updatedServices = [...services, updatedService];
+        toast.success("Serviço duplicado com sucesso!");
+      } else {
+        // Update existing service
+        updatedServices = services.map(service => 
+          service.id === id ? updatedService : service
+        );
+        toast.success("Serviço atualizado com sucesso!");
+      }
+      
+      setServices(updatedServices);
+      localStorage.setItem('services', JSON.stringify(updatedServices));
+      console.log('Service saved:', updatedService);
+      console.log('Updated services:', updatedServices);
+      
+      navigate(isDuplicating ? "/" : `/service/${id}`);
+    } catch (error) {
+      console.error('Error updating service:', error);
+      toast.error("Erro ao salvar as alterações. Tente novamente.");
+    }
   };
 
   const getDefaultValues = (): ServiceFormData | undefined => {
     if (!serviceToEdit) return undefined;
 
     return {
-      title: serviceToEdit.title,
+      title: isDuplicating ? `${serviceToEdit.title} (Cópia)` : serviceToEdit.title,
       category: serviceToEdit.category as ServiceCategory,
       description: serviceToEdit.description,
       checklists: serviceToEdit.checklists.map(checklist => ({
@@ -143,16 +173,24 @@ export default function Admin() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-3xl font-bold">
-              {isEditMode ? "Editar Serviço" : "Novo Serviço"}
+              {isDuplicating 
+                ? "Duplicar Serviço" 
+                : isEditMode 
+                  ? "Editar Serviço" 
+                  : "Novo Serviço"}
             </h1>
           </div>
         </AnimatedTransition>
 
         <AnimatedTransition animation="scale">
           <ServiceForm 
-            onSubmit={isEditMode ? handleUpdateService : handleCreateService}
+            onSubmit={isEditMode ? handleUpdateService : isDuplicating ? handleUpdateService : handleCreateService}
             defaultValues={getDefaultValues()}
-            submitLabel={isEditMode ? "Atualizar Serviço" : "Cadastrar Serviço"}
+            submitLabel={isDuplicating 
+              ? "Duplicar Serviço" 
+              : isEditMode 
+                ? "Atualizar Serviço" 
+                : "Cadastrar Serviço"}
           />
         </AnimatedTransition>
       </div>
