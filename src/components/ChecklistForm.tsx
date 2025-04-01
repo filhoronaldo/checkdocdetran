@@ -4,7 +4,7 @@ import { useFieldArray, Control } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
-import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { ServiceFormData } from "@/types";
 import ChecklistItemsForm from "./ChecklistItemsForm";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,22 +14,10 @@ interface ChecklistFormProps {
 }
 
 const ChecklistForm = ({ control }: ChecklistFormProps) => {
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "checklists"
   });
-
-  const handleMoveUp = (index: number) => {
-    if (index > 0) {
-      move(index, index - 1);
-    }
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index < fields.length - 1) {
-      move(index, index + 1);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -80,7 +68,7 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
                 )}
               />
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 <FormField
                   control={control}
                   name={`checklists.${checklistIndex}.isOptional`}
@@ -113,41 +101,17 @@ const ChecklistForm = ({ control }: ChecklistFormProps) => {
                   )}
                 />
                 
-                <div className="flex gap-1">
+                {fields.length > 1 && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleMoveUp(checklistIndex)}
-                    disabled={checklistIndex === 0}
-                    className="h-8 w-8 p-1"
+                    onClick={() => remove(checklistIndex)}
+                    className="text-destructive hover:text-destructive/90"
                   >
-                    <MoveUp className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMoveDown(checklistIndex)}
-                    disabled={checklistIndex === fields.length - 1}
-                    className="h-8 w-8 p-1"
-                  >
-                    <MoveDown className="h-4 w-4" />
-                  </Button>
-                  
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => remove(checklistIndex)}
-                      className="text-destructive hover:text-destructive/90"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
