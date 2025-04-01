@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import supabase from "@/lib/supabase";
+import { isAuthenticated } from "@/lib/supabase";
 
 const formSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -53,11 +53,10 @@ export default function UserForm({ onSuccess }: UserFormProps) {
     setIsLoading(true);
     
     try {
-      // Check if current user is admin
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      // Check if user is authenticated
+      if (!isAuthenticated()) {
         toast.error("Você precisa estar logado para adicionar usuários");
+        setIsLoading(false);
         return;
       }
       

@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { User, AuthContextType } from "@/types/auth";
 import { toast } from "sonner";
+import supabase from "@/lib/supabase";
 
 // Temporarily bypassing Supabase for auth
 const TEMP_ADMIN = {
@@ -33,6 +34,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = JSON.parse(storedUser);
           console.log("Setting user from localStorage:", userData);
           setUser(userData);
+          
+          // For our temporary auth setup, we're manually setting a session
+          if (!await supabase.auth.getSession()) {
+            await supabase.auth.setSession({
+              access_token: 'temp_auth_token_' + userData.id,
+              refresh_token: 'temp_refresh_token',
+            });
+          }
         }
       } catch (error) {
         console.error("Error checking user session:", error);
@@ -46,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log("Temporary login with:", email);
+      console.log("Attempting login with:", email);
       
       // Check against temporary admin credentials
       if (email === TEMP_ADMIN.email && password === TEMP_ADMIN.password) {
@@ -64,6 +73,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('currentUser', JSON.stringify(userData));
         setUser(userData);
         
+        // For our temporary auth setup, manually set a session
+        await supabase.auth.setSession({
+          access_token: 'temp_auth_token_' + userData.id,
+          refresh_token: 'temp_refresh_token',
+        });
+        
         return true;
       }
       
@@ -80,6 +95,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Clear from localStorage
       localStorage.removeItem('currentUser');
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
       setUser(null);
       toast.success("Logout realizado com sucesso!");
     } catch (error) {
