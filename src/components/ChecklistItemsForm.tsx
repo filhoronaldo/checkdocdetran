@@ -3,16 +3,11 @@ import React from "react";
 import { useFieldArray, Control } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
-import { Plus, Trash2, X } from "lucide-react";
+import { FormField, FormItem, FormControl, FormMessage, FormLabel } from "@/components/ui/form";
+import { Checkbox } from "./ui/checkbox";
+import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
+import { MultiSelect } from "./ui/multi-select";
 import { ServiceFormData } from "@/types";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface ChecklistItemsFormProps {
   control: Control<ServiceFormData>;
@@ -20,163 +15,145 @@ interface ChecklistItemsFormProps {
 }
 
 const tagOptions = [
-  { value: 'Original', label: 'Original' },
-  { value: 'Físico', label: 'Físico' },
-  { value: 'Digital', label: 'Digital' },
-  { value: 'Digital ou Físico', label: 'Digital ou Físico' },
-  { value: 'Original e Cópia', label: 'Original e Cópia' },
+  { value: "Original", label: "Original" },
+  { value: "Físico", label: "Físico" },
+  { value: "Digital", label: "Digital" },
+  { value: "Digital ou Físico", label: "Digital ou Físico" },
+  { value: "Original e Cópia", label: "Original e Cópia" },
 ];
 
 const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps) => {
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, move } = useFieldArray({
     control,
-    name: `checklists.${checklistIndex}.items` as any
+    name: `checklists.${checklistIndex}.items`,
   });
 
+  const handleMoveUp = (index: number) => {
+    if (index > 0) {
+      move(index, index - 1);
+    }
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < fields.length - 1) {
+      move(index, index + 1);
+    }
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h4 className="text-sm font-medium text-muted-foreground">Itens</h4>
+        <h4 className="text-sm font-medium">Itens da checklist</h4>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => append({ text: "", observation: "", tags: [], isOptional: false })}
-          className="h-8 px-2 text-xs"
+          className="flex items-center gap-1"
         >
-          <Plus className="h-3 w-3 mr-1" />
-          Adicionar
+          <Plus className="h-3 w-3" />
+          Adicionar Item
         </Button>
       </div>
 
       {fields.map((item, itemIndex) => (
-        <div 
-          key={item.id} 
-          className="space-y-2 border border-border p-3 rounded-md mb-3"
-        >
+        <div key={item.id} className="grid grid-cols-1 gap-4 p-3 border border-border/40 rounded-md">
           <div className="flex items-start gap-2">
-            <div className="flex-1">
-              <FormField
-                control={control}
-                name={`checklists.${checklistIndex}.items.${itemIndex}.text`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Título do item" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            {/* Optional checkbox */}
             <FormField
               control={control}
-              name={`checklists.${checklistIndex}.items.${itemIndex}.isOptional`}
+              name={`checklists.${checklistIndex}.items.${itemIndex}.text`}
               render={({ field }) => (
-                <FormItem className="flex items-center space-x-2 space-y-0">
+                <FormItem className="flex-1">
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Input placeholder="Texto do item" {...field} />
                   </FormControl>
-                  <div className="text-xs font-medium">Opcional</div>
+                  <FormMessage />
                 </FormItem>
               )}
             />
             
-            {/* Delete button */}
-            {fields.length > 1 && (
+            <div className="flex items-center gap-1 mt-1">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => remove(itemIndex)}
-                className="text-muted-foreground hover:text-destructive"
+                onClick={() => handleMoveUp(itemIndex)}
+                disabled={itemIndex === 0}
+                className="h-7 w-7 p-1"
               >
-                <Trash2 className="h-4 w-4" />
+                <MoveUp className="h-3 w-3" />
               </Button>
-            )}
+              
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleMoveDown(itemIndex)}
+                disabled={itemIndex === fields.length - 1}
+                className="h-7 w-7 p-1"
+              >
+                <MoveDown className="h-3 w-3" />
+              </Button>
+              
+              {fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => remove(itemIndex)}
+                  className="h-7 w-7 p-1 text-destructive hover:text-destructive/90"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <FormField
+              control={control}
+              name={`checklists.${checklistIndex}.items.${itemIndex}.observation`}
+              render={({ field }) => (
+                <FormItem className="md:col-span-7">
+                  <FormLabel className="text-xs">Observação</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Observação (opcional)" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={control}
+              name={`checklists.${checklistIndex}.items.${itemIndex}.tags`}
+              render={({ field }) => (
+                <FormItem className="md:col-span-5">
+                  <FormLabel className="text-xs">Tags</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      placeholder="Selecione tags"
+                      selected={field.value || []}
+                      options={tagOptions}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </div>
           
           <FormField
             control={control}
-            name={`checklists.${checklistIndex}.items.${itemIndex}.observation`}
+            name={`checklists.${checklistIndex}.items.${itemIndex}.isOptional`}
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex items-center space-x-2 space-y-0">
                 <FormControl>
-                  <Input placeholder="Observação (opcional)" {...field} />
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={control}
-            name={`checklists.${checklistIndex}.items.${itemIndex}.tags`}
-            render={({ field }) => (
-              <FormItem className="space-y-1">
-                <div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                      >
-                        Adicionar tags
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-2">
-                      <div className="space-y-2">
-                        {tagOptions.map(tag => (
-                          <div key={tag.value} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={`tag-${itemIndex}-${tag.value}`}
-                              checked={field.value?.includes(tag.value as any)}
-                              onCheckedChange={(checked) => {
-                                const currentTags = field.value || [];
-                                const newTags = checked
-                                  ? [...currentTags, tag.value as any]
-                                  : currentTags.filter(t => t !== tag.value);
-                                field.onChange(newTags);
-                              }}
-                            />
-                            <label 
-                              htmlFor={`tag-${itemIndex}-${tag.value}`}
-                              className="text-sm cursor-pointer"
-                            >
-                              {tag.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                {field.value && field.value.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {field.value.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs py-0 px-2">
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            field.onChange(field.value.filter(t => t !== tag));
-                          }}
-                          className="ml-1 text-xs text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <FormMessage />
+                <div className="text-sm">Item Opcional</div>
               </FormItem>
             )}
           />

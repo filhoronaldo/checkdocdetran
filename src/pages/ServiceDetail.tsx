@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
@@ -35,32 +35,21 @@ export default function ServiceDetail() {
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
 
-  // Calculate progress for each section and overall
   const calculateProgress = (checklist: ChecklistGroup) => {
-    // Get only required items (non-optional)
     const requiredItems = checklist.items.filter(item => !item.isOptional);
-    
-    // If no required items, return 100% (all done)
     if (requiredItems.length === 0) return 100;
-    
-    // Count completed required items
     const completedRequiredItems = requiredItems.filter(item => item.isCompleted).length;
-    
-    // Calculate percentage
     return (completedRequiredItems / requiredItems.length) * 100;
   };
 
-  // Check if a section is completed
   const isSectionCompleted = (checklist: ChecklistGroup) => {
-    // If it's an alternative section, check if any item is completed
     if (checklist.isAlternative) {
       return checklist.items.some(item => item.isCompleted);
-    } 
-    
-    // Otherwise, all required items must be completed
-    const requiredItems = checklist.items.filter(item => !item.isOptional);
-    return requiredItems.length > 0 && 
-           requiredItems.every(item => item.isCompleted);
+    } else {
+      const requiredItems = checklist.items.filter(item => !item.isOptional);
+      return requiredItems.length > 0 && 
+             requiredItems.every(item => item.isCompleted);
+    }
   };
 
   useEffect(() => {
@@ -68,16 +57,11 @@ export default function ServiceDetail() {
     if (foundService) {
       setService(foundService);
       
-      // Only count required items and non-optional sections
       const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
-      
-      // Check if all required sections are completed
       const allSectionsCompleted = requiredSections.every(section => {
         if (section.isAlternative) {
-          // For alternative sections, any completed item completes the section
           return section.items.some(item => item.isCompleted);
         } else {
-          // For regular sections, all required items must be completed
           const requiredItems = section.items.filter(item => !item.isOptional);
           return requiredItems.length > 0 && 
                  requiredItems.every(item => item.isCompleted);
@@ -90,22 +74,7 @@ export default function ServiceDetail() {
 
   useEffect(() => {
     return () => {
-      if (service) {
-        const updatedService = {
-          ...service,
-          checklists: service.checklists.map(checklist => ({
-            ...checklist,
-            items: checklist.items.map(item => ({
-              ...item,
-              isCompleted: false
-            }))
-          }))
-        };
-        
-        setServices(prevServices => 
-          prevServices.map(s => s.id === service.id ? updatedService : s)
-        );
-      }
+      resetAllServiceItems();
     };
   }, []);
 
@@ -136,16 +105,11 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    // Recalculate all completed status
     const requiredSections = updatedService.checklists.filter(checklist => !checklist.isOptional);
-    
-    // Check if all required sections are completed
     const allSectionsCompleted = requiredSections.every(section => {
       if (section.isAlternative) {
-        // For alternative sections, any completed item completes the section
         return section.items.some(item => item.isCompleted);
       } else {
-        // For regular sections, all required items must be completed
         const requiredItems = section.items.filter(item => !item.isOptional);
         return requiredItems.length > 0 && 
                requiredItems.every(item => item.isCompleted);
@@ -154,7 +118,22 @@ export default function ServiceDetail() {
     
     setAllCompleted(allSectionsCompleted);
   };
-  
+
+  const resetAllServiceItems = () => {
+    const updatedServices = services.map(service => ({
+      ...service,
+      checklists: service.checklists.map(checklist => ({
+        ...checklist,
+        items: checklist.items.map(item => ({
+          ...item,
+          isCompleted: false
+        }))
+      }))
+    }));
+    
+    setServices(updatedServices);
+  };
+
   const resetAllItems = () => {
     if (!service) return;
     
@@ -179,12 +158,32 @@ export default function ServiceDetail() {
     
     toast.success("Checklist reiniciado com sucesso!");
   };
-  
+
+  const handleBackToHome = () => {
+    resetAllServiceItems();
+    navigate("/");
+  };
+
+  const duplicateService = () => {
+    if (!service) return;
+    
+    const duplicatedService = {
+      ...service,
+      title: `Cópia de ${service.title}`,
+      id: crypto.randomUUID()
+    };
+    
+    const updatedServices = [...services, duplicatedService];
+    setServices(updatedServices);
+    
+    navigate(`/admin/edit/${duplicatedService.id}`);
+    toast.success("Serviço duplicado com sucesso!");
+  };
+
   const deleteService = async () => {
     if (!service) return;
     
     try {
-      // Get auth token for authentication
       const token = await getAuthToken();
       
       if (!token) {
@@ -192,9 +191,7 @@ export default function ServiceDetail() {
         return;
       }
       
-      // First delete all checklist items associated with this service
       for (const checklist of service.checklists) {
-        // Delete all items in this checklist
         const { error: itemsError } = await supabase
           .from('ckdt_checklist_items')
           .delete()
@@ -206,7 +203,6 @@ export default function ServiceDetail() {
           return;
         }
         
-        // Then delete the checklist itself
         const { error: checklistError } = await supabase
           .from('ckdt_checklists')
           .delete()
@@ -219,7 +215,6 @@ export default function ServiceDetail() {
         }
       }
       
-      // Finally delete the service
       const { error: serviceError } = await supabase
         .from('ckdt_services')
         .delete()
@@ -231,7 +226,6 @@ export default function ServiceDetail() {
         return;
       }
       
-      // Also update local storage
       const updatedServices = services.filter(s => s.id !== service.id);
       setServices(updatedServices);
       
@@ -242,7 +236,7 @@ export default function ServiceDetail() {
       toast.error("Ocorreu um erro ao remover o serviço");
     }
   };
-  
+
   const handleShare = () => {
     if (!service) return;
     
@@ -259,7 +253,7 @@ export default function ServiceDetail() {
       toast.error("Seu navegador não suporta esta funcionalidade!");
     }
   };
-  
+
   if (!service) {
     return (
       <Layout>
@@ -276,27 +270,22 @@ export default function ServiceDetail() {
       </Layout>
     );
   }
-  
-  // Calculate overall progress
+
   const requiredSections = service.checklists.filter(checklist => !checklist.isOptional);
-  
-  // Count how many required sections are completed
   const completedRequiredSections = requiredSections.filter(section => {
     if (section.isAlternative) {
-      // For alternative sections, any completed item completes the section
       return section.items.some(item => item.isCompleted);
     } else {
-      // For regular sections, all required items must be completed
       const requiredItems = section.items.filter(item => !item.isOptional);
       return requiredItems.length > 0 && 
              requiredItems.every(item => item.isCompleted);
     }
   }).length;
-  
+
   const progressPercentage = requiredSections.length > 0 
     ? (completedRequiredSections / requiredSections.length) * 100 
     : 0;
-  
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -308,7 +297,7 @@ export default function ServiceDetail() {
                   variant="ghost" 
                   size="sm" 
                   className="h-8 w-8 p-0" 
-                  onClick={() => navigate("/")}
+                  onClick={handleBackToHome}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
@@ -345,6 +334,15 @@ export default function ServiceDetail() {
                   >
                     <Pencil className="h-4 w-4" />
                     Editar
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-1"
+                    onClick={duplicateService}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Duplicar
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -421,10 +419,7 @@ export default function ServiceDetail() {
         
         <div className="space-y-8">
           {service.checklists.map((checklist) => {
-            // Calculate progress for this section
             const sectionProgress = calculateProgress(checklist);
-            
-            // Check if section is completed
             const isCompleted = isSectionCompleted(checklist);
             
             return (
@@ -450,7 +445,6 @@ export default function ServiceDetail() {
                     </div>
                   </h3>
                   
-                  {/* Progress bar for the section */}
                   {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
@@ -502,7 +496,6 @@ export default function ServiceDetail() {
   );
 }
 
-// Helper function for class names
 function cn(...inputs: (string | boolean | undefined | null)[]) {
   return inputs.filter(Boolean).join(" ");
 }
