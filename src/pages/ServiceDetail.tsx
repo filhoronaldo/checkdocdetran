@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
 import { useAuth } from "@/contexts/AuthContext";
+import supabase, { getAuthToken } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -179,14 +180,67 @@ export default function ServiceDetail() {
     toast.success("Checklist reiniciado com sucesso!");
   };
   
-  const deleteService = () => {
+  const deleteService = async () => {
     if (!service) return;
     
-    const updatedServices = services.filter(s => s.id !== service.id);
-    setServices(updatedServices);
-    
-    toast.success("Serviço removido com sucesso!");
-    navigate("/");
+    try {
+      // Get auth token for authentication
+      const token = await getAuthToken();
+      
+      if (!token) {
+        toast.error("Erro de autenticação. Faça login novamente.");
+        return;
+      }
+      
+      // First delete all checklist items associated with this service
+      for (const checklist of service.checklists) {
+        // Delete all items in this checklist
+        const { error: itemsError } = await supabase
+          .from('ckdt_checklist_items')
+          .delete()
+          .eq('checklist_id', checklist.id);
+          
+        if (itemsError) {
+          console.error('Error deleting checklist items:', itemsError);
+          toast.error(`Erro ao excluir itens do checklist: ${itemsError.message}`);
+          return;
+        }
+        
+        // Then delete the checklist itself
+        const { error: checklistError } = await supabase
+          .from('ckdt_checklists')
+          .delete()
+          .eq('id', checklist.id);
+          
+        if (checklistError) {
+          console.error('Error deleting checklist:', checklistError);
+          toast.error(`Erro ao excluir checklist: ${checklistError.message}`);
+          return;
+        }
+      }
+      
+      // Finally delete the service
+      const { error: serviceError } = await supabase
+        .from('ckdt_services')
+        .delete()
+        .eq('id', service.id);
+        
+      if (serviceError) {
+        console.error('Error deleting service:', serviceError);
+        toast.error(`Erro ao excluir serviço: ${serviceError.message}`);
+        return;
+      }
+      
+      // Also update local storage
+      const updatedServices = services.filter(s => s.id !== service.id);
+      setServices(updatedServices);
+      
+      toast.success("Serviço removido com sucesso!");
+      navigate("/");
+    } catch (error) {
+      console.error('Error in delete operation:', error);
+      toast.error("Ocorreu um erro ao remover o serviço");
+    }
   };
   
   const handleShare = () => {
