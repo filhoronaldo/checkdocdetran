@@ -11,13 +11,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AnimatedTransition from "@/components/AnimatedTransition";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase from "@/lib/supabase";
+import supabase, { getAuthToken } from "@/lib/supabase";
 
 export default function Admin() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const isEditMode = !!id;
 
   // Check if user is authenticated
@@ -42,6 +42,7 @@ export default function Admin() {
 
   const handleCreateService = async (data: ServiceFormData) => {
     try {
+      // Create a new service object
       const newService: Service = {
         id: uuidv4(),
         title: data.title,
@@ -64,9 +65,25 @@ export default function Admin() {
       };
 
       // Save to local storage first
-      setServices([...services, newService]);
+      const updatedServices = [...services, newService];
+      setServices(updatedServices);
       
-      // Save to Supabase
+      // Get the auth token for the current session
+      const authToken = await getAuthToken();
+      
+      if (!authToken) {
+        console.error("No auth token available");
+        toast.error("Erro de autenticação. Faça login novamente.");
+        return;
+      }
+
+      // Set the Authorization header with the token for all Supabase requests
+      supabase.auth.setSession({
+        access_token: authToken,
+        refresh_token: '',
+      });
+      
+      // Save to Supabase with proper authentication
       const { error: serviceError } = await supabase
         .from('ckdt_services')
         .insert({
@@ -76,9 +93,12 @@ export default function Admin() {
           description: newService.description
         });
       
-      if (serviceError) throw serviceError;
+      if (serviceError) {
+        console.error("Error creating service:", serviceError);
+        throw serviceError;
+      }
 
-      // Save checklists
+      // Save checklists with proper auth
       for (const checklist of newService.checklists) {
         const { error: checklistError } = await supabase
           .from('ckdt_checklists')
@@ -90,7 +110,10 @@ export default function Admin() {
             is_alternative: checklist.isAlternative || false
           });
         
-        if (checklistError) throw checklistError;
+        if (checklistError) {
+          console.error("Error creating checklist:", checklistError);
+          throw checklistError;
+        }
 
         // Save checklist items
         for (const item of checklist.items) {
@@ -105,7 +128,10 @@ export default function Admin() {
               is_optional: item.isOptional || false
             });
           
-          if (itemError) throw itemError;
+          if (itemError) {
+            console.error("Error creating checklist item:", itemError);
+            throw itemError;
+          }
         }
       }
       
@@ -113,7 +139,7 @@ export default function Admin() {
       navigate("/");
     } catch (error) {
       console.error("Error creating service:", error);
-      toast.error("Erro ao salvar o serviço no banco de dados");
+      toast.error("Erro ao salvar o serviço no banco de dados. Verifique sua conexão ou permissões.");
     }
   };
 
@@ -121,6 +147,21 @@ export default function Admin() {
     if (!id) return;
 
     try {
+      // Get the auth token for the current session
+      const authToken = await getAuthToken();
+      
+      if (!authToken) {
+        console.error("No auth token available");
+        toast.error("Erro de autenticação. Faça login novamente.");
+        return;
+      }
+
+      // Set the Authorization header with the token for all Supabase requests
+      supabase.auth.setSession({
+        access_token: authToken,
+        refresh_token: '',
+      });
+
       const updatedService: Service = {
         id,
         title: data.title,
