@@ -58,8 +58,13 @@ export const fetchServiceWithOrderedChecklists = async (serviceId: string) => {
       .eq('id', serviceId)
       .single();
     
-    if (serviceError || !service) {
+    if (serviceError) {
       console.error('Error fetching service:', serviceError);
+      return null;
+    }
+    
+    if (!service) {
+      console.log('Service not found:', serviceId);
       return null;
     }
     
@@ -70,42 +75,74 @@ export const fetchServiceWithOrderedChecklists = async (serviceId: string) => {
       .eq('service_id', serviceId)
       .order('position', { ascending: true });
     
-    if (checklistsError || !checklists) {
+    if (checklistsError) {
       console.error('Error fetching checklists:', checklistsError);
       return { ...service, checklists: [] };
     }
     
-    // Fetch items for each checklist, ordered by position
-    const checklistsWithItems = await Promise.all(
+    if (!checklists || checklists.length === 0) {
+      console.log('No checklists found for service:', serviceId);
+      return { ...service, checklists: [] };
+    }
+    
+    // Fetch items for each checklist and handle potential network errors
+    const checklistsWithItems = await Promise.allSettled(
       checklists.map(async (checklist) => {
-        const { data: items, error: itemsError } = await supabase
-          .from('ckdt_checklist_items')
-          .select('*')
-          .eq('checklist_id', checklist.id)
-          .order('position', { ascending: true });
-        
-        if (itemsError) {
-          console.error(`Error fetching items for checklist ${checklist.id}:`, itemsError);
+        try {
+          const { data: items, error: itemsError } = await supabase
+            .from('ckdt_checklist_items')
+            .select('*')
+            .eq('checklist_id', checklist.id)
+            .order('position', { ascending: true });
+          
+          if (itemsError) {
+            console.error(`Error fetching items for checklist ${checklist.id}:`, itemsError);
+            return { ...checklist, items: [] };
+          }
+          
+          if (!items || items.length === 0) {
+            console.log(`No items found for checklist ${checklist.id}`);
+            return { ...checklist, items: [] };
+          }
+          
+          // Convert the DB items to the format expected by the UI
+          const formattedItems = items.map(item => ({
+            ...item,
+            isCompleted: false
+          }));
+          
+          return { ...checklist, items: formattedItems };
+        } catch (error) {
+          console.error(`Error processing checklist ${checklist.id}:`, error);
           return { ...checklist, items: [] };
         }
-        
-        // Convert the DB items to the format expected by the UI
-        const formattedItems = items.map(item => ({
-          ...item,
-          isCompleted: false
-        }));
-        
-        return { ...checklist, items: formattedItems };
       })
     );
     
+    // Process the results from Promise.allSettled
+    const processedChecklists = checklistsWithItems.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      }
+      console.error(`Failed to process checklist at index ${index}:`, result.reason);
+      return { ...checklists[index], items: [] };
+    });
+    
     return {
       ...service,
-      checklists: checklistsWithItems
+      checklists: processedChecklists
     };
   } catch (error) {
     console.error('Error fetching service with ordered checklists:', error);
-    return null;
+    // Return a base service structure with empty checklists
+    // This allows the UI to still render instead of getting stuck on loading
+    return {
+      id: serviceId,
+      title: "Error loading service",
+      description: "Failed to load service details. Please try again later.",
+      category: "Error",
+      checklists: []
+    };
   }
 };
 
