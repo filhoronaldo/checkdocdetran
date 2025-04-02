@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy, MoveUp, MoveDown, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy, MoveUp, MoveDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase, { getAuthToken, updateChecklistPositions, fetchServiceWithOrderedChecklists } from "@/lib/supabase";
+import supabase, { getAuthToken, updateChecklistPositions } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,6 @@ export default function ServiceDetail() {
   const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const calculateProgress = (checklist: ChecklistGroup) => {
     const requiredItems = checklist.items.filter(item => !item.isOptional);
@@ -55,118 +53,29 @@ export default function ServiceDetail() {
     }
   };
 
-  const loadServiceFromDatabase = async (retry = false) => {
-    if (!id) return;
-    
-    setLoading(true);
-    setLoadError(null);
-    
-    try {
-      console.log("Fetching service:", id);
-      const serviceFromDb = await fetchServiceWithOrderedChecklists(id);
-      
-      if (serviceFromDb) {
-        console.log("Service fetched successfully:", serviceFromDb.title);
-        const localService = services.find(s => s.id === id);
-        
-        if (localService) {
-          // Merge the database data with local completion state
-          const mergedService = {
-            ...serviceFromDb,
-            checklists: serviceFromDb.checklists.map(checklist => {
-              const localChecklist = localService.checklists.find(c => c.id === checklist.id);
-              
-              if (localChecklist) {
-                return {
-                  ...checklist,
-                  items: checklist.items.map(item => {
-                    const localItem = localChecklist.items.find(i => i.id === item.id);
-                    return {
-                      ...item,
-                      isCompleted: localItem ? localItem.isCompleted : false
-                    };
-                  })
-                };
-              }
-              
-              return checklist;
-            })
-          };
-          
-          setService(mergedService);
-          
-          // Update the services in localStorage with the latest from the database
-          setServices(prevServices => 
-            prevServices.map(s => s.id === id ? mergedService : s)
-          );
-          
-          const requiredSections = mergedService.checklists.filter(checklist => !checklist.isOptional);
-          const allSectionsCompleted = requiredSections.every(section => {
-            if (section.isAlternative) {
-              return section.items.some(item => item.isCompleted);
-            } else {
-              const requiredItems = section.items.filter(item => !item.isOptional);
-              return requiredItems.length > 0 && 
-                    requiredItems.every(item => item.isCompleted);
-            }
-          });
-          
-          setAllCompleted(allSectionsCompleted);
-        } else {
-          setService(serviceFromDb);
-        }
-      } else {
-        // Fallback to localStorage if database fetch fails
-        console.log("Service not found in database, checking localStorage");
-        const foundService = services.find(s => s.id === id);
-        if (foundService) {
-          console.log("Service found in localStorage:", foundService.title);
-          setService(foundService);
-          
-          const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
-          const allSectionsCompleted = requiredSections.every(section => {
-            if (section.isAlternative) {
-              return section.items.some(item => item.isCompleted);
-            } else {
-              const requiredItems = section.items.filter(item => !item.isOptional);
-              return requiredItems.length > 0 && 
-                    requiredItems.every(item => item.isCompleted);
-            }
-          });
-          
-          setAllCompleted(allSectionsCompleted);
-        } else {
-          console.error("Service not found in database or localStorage");
-          setLoadError("Serviço não encontrado");
-        }
-      }
-    } catch (error) {
-      console.error("Error loading service:", error);
-      setLoadError("Erro ao carregar o serviço. Por favor, tente novamente.");
-      
-      // Fallback to localStorage if there's an error
-      const foundService = services.find(s => s.id === id);
-      if (foundService) {
-        console.log("Using service from localStorage as fallback");
-        setService(foundService);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadServiceFromDatabase();
-  }, [id]);
-
-  const handleRefresh = () => {
-    loadServiceFromDatabase(true);
-    toast.info("Recarregando dados do serviço...");
-  };
+    const foundService = services.find(s => s.id === id);
+    if (foundService) {
+      setService(foundService);
+      
+      const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
+      const allSectionsCompleted = requiredSections.every(section => {
+        if (section.isAlternative) {
+          return section.items.some(item => item.isCompleted);
+        } else {
+          const requiredItems = section.items.filter(item => !item.isOptional);
+          return requiredItems.length > 0 && 
+                 requiredItems.every(item => item.isCompleted);
+        }
+      });
+      
+      setAllCompleted(allSectionsCompleted);
+    }
+  }, [id, services]);
 
   useEffect(() => {
     return () => {
-      // Clean up on unmount
+      resetAllServiceItems();
     };
   }, []);
 
@@ -252,6 +161,7 @@ export default function ServiceDetail() {
   };
 
   const handleBackToHome = () => {
+    resetAllServiceItems();
     navigate("/");
   };
 
@@ -274,12 +184,11 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
+    // Update positions in the database
     const checklistIds = updatedChecklists.map(checklist => checklist.id);
     const success = await updateChecklistPositions(service.id, checklistIds);
     
-    if (success) {
-      toast.success("Posições atualizadas com sucesso!");
-    } else {
+    if (!success) {
       toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
     }
   };
@@ -303,12 +212,11 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
+    // Update positions in the database
     const checklistIds = updatedChecklists.map(checklist => checklist.id);
     const success = await updateChecklistPositions(service.id, checklistIds);
     
-    if (success) {
-      toast.success("Posições atualizadas com sucesso!");
-    } else {
+    if (!success) {
       toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
     }
   };
@@ -403,45 +311,6 @@ export default function ServiceDetail() {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <div className="animate-spin mb-4">
-            <RefreshCw className="h-8 w-8 text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold">Carregando serviço...</h2>
-          <p className="text-muted-foreground mt-2">
-            Aguarde enquanto carregamos os detalhes do serviço.
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <h2 className="text-2xl font-bold text-destructive">Erro ao carregar serviço</h2>
-          <p className="text-muted-foreground mt-2">
-            {loadError}
-          </p>
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleRefresh} className="flex items-center gap-1">
-              <RefreshCw className="h-4 w-4" />
-              Tentar novamente
-            </Button>
-            <Button variant="outline" onClick={() => navigate("/")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para a lista
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
   if (!service) {
     return (
       <Layout>
@@ -490,18 +359,8 @@ export default function ServiceDetail() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <h1 className="text-3xl font-bold line-clamp-1">{service.title}</h1>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={handleRefresh}
-                  title="Recarregar dados"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
               </div>
             </AnimatedTransition>
-            
             <div className="flex flex-wrap gap-2">
               <Button 
                 variant="outline" 
@@ -616,120 +475,104 @@ export default function ServiceDetail() {
         )}
         
         <div className="space-y-8">
-          {service.checklists && service.checklists.length > 0 ? (
-            service.checklists.map((checklist, checklistIndex) => {
-              const sectionProgress = calculateProgress(checklist);
-              const isCompleted = isSectionCompleted(checklist);
-              
-              return (
-                <div key={checklist.id} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className={cn(
-                      "text-xl font-semibold flex items-center gap-2",
-                      checklist.isOptional ? "text-amber-700" : "",
-                      checklist.isAlternative ? "text-blue-700" : ""
-                    )}>
-                      {checklist.title}
-                      <div className="flex items-center gap-2">
-                        {checklist.isOptional && (
-                          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                            Só em casos específicos
-                          </span>
-                        )}
-                        {checklist.isAlternative && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            Seção alternativa
-                          </span>
-                        )}
-                      </div>
-                    </h3>
-                    
+          {service.checklists.map((checklist, checklistIndex) => {
+            const sectionProgress = calculateProgress(checklist);
+            const isCompleted = isSectionCompleted(checklist);
+            
+            return (
+              <div key={checklist.id} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className={cn(
+                    "text-xl font-semibold flex items-center gap-2",
+                    checklist.isOptional ? "text-amber-700" : "",
+                    checklist.isAlternative ? "text-blue-700" : ""
+                  )}>
+                    {checklist.title}
                     <div className="flex items-center gap-2">
-                      {isAuthenticated && (
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-1"
-                            onClick={() => handleMoveSectionUp(checklistIndex)}
-                            disabled={checklistIndex === 0}
-                          >
-                            <MoveUp className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-1"
-                            onClick={() => handleMoveSectionDown(checklistIndex)}
-                            disabled={checklistIndex === service.checklists.length - 1}
-                          >
-                            <MoveDown className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      {checklist.isOptional && (
+                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                          Só em casos específicos
+                        </span>
                       )}
-                    
-                      {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {Math.round(sectionProgress)}%
-                          </span>
-                          <div className="w-24 bg-muted rounded-full h-1.5">
-                            <motion.div 
-                              className="bg-completed h-1.5 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${sectionProgress}%` }}
-                              transition={{ duration: 0.5 }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
                       {checklist.isAlternative && (
-                        <div className="flex items-center">
-                          <span className={cn(
-                            "text-xs px-2 py-1 rounded-full",
-                            isCompleted 
-                              ? "bg-completed/20 text-completed" 
-                              : "bg-muted text-muted-foreground"
-                          )}>
-                            {isCompleted ? "Completo" : "Selecione um item"}
-                          </span>
-                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          Seção alternativa
+                        </span>
                       )}
                     </div>
-                  </div>
+                  </h3>
                   
-                  <AnimatePresence>
-                    {checklist.items && checklist.items.length > 0 ? (
-                      checklist.items.map((item) => (
-                        <ChecklistItem 
-                          key={item.id} 
-                          item={item} 
-                          onToggle={(itemId) => handleToggleItem(checklist.id, itemId)}
-                          isInOptionalSection={checklist.isOptional}
-                          isInAlternativeSection={checklist.isAlternative}
-                          isSectionCompleted={isCompleted}
-                        />
-                      ))
-                    ) : (
-                      <div className="p-4 border border-border/50 rounded-lg bg-muted/20">
-                        <p className="text-sm text-muted-foreground">Nenhum item encontrado nesta seção.</p>
+                  <div className="flex items-center gap-2">
+                    {isAuthenticated && (
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-1"
+                          onClick={() => handleMoveSectionUp(checklistIndex)}
+                          disabled={checklistIndex === 0}
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-1"
+                          onClick={() => handleMoveSectionDown(checklistIndex)}
+                          disabled={checklistIndex === service.checklists.length - 1}
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
                       </div>
                     )}
-                  </AnimatePresence>
+                  
+                    {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(sectionProgress)}%
+                        </span>
+                        <div className="w-24 bg-muted rounded-full h-1.5">
+                          <motion.div 
+                            className="bg-completed h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${sectionProgress}%` }}
+                            transition={{ duration: 0.5 }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {checklist.isAlternative && (
+                      <div className="flex items-center">
+                        <span className={cn(
+                          "text-xs px-2 py-1 rounded-full",
+                          isCompleted 
+                            ? "bg-completed/20 text-completed" 
+                            : "bg-muted text-muted-foreground"
+                        )}>
+                          {isCompleted ? "Completo" : "Selecione um item"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              );
-            })
-          ) : (
-            <div className="p-6 border border-border rounded-lg text-center">
-              <p className="text-muted-foreground">Nenhuma seção encontrada para este serviço.</p>
-              <Button onClick={handleRefresh} className="mt-4 flex mx-auto items-center gap-1">
-                <RefreshCw className="h-4 w-4" />
-                Tentar novamente
-              </Button>
-            </div>
-          )}
+                
+                <AnimatePresence>
+                  {checklist.items.map((item) => (
+                    <ChecklistItem 
+                      key={item.id} 
+                      item={item} 
+                      onToggle={(itemId) => handleToggleItem(checklist.id, itemId)}
+                      isInOptionalSection={checklist.isOptional}
+                      isInAlternativeSection={checklist.isAlternative}
+                      isSectionCompleted={isCompleted}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
       </div>
     </Layout>
