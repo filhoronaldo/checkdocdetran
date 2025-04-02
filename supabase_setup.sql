@@ -36,6 +36,7 @@ CREATE TABLE ckdt_checklists (
   title TEXT NOT NULL,
   is_optional BOOLEAN NOT NULL DEFAULT FALSE,
   is_alternative BOOLEAN NOT NULL DEFAULT FALSE,
+  position INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -48,6 +49,7 @@ CREATE TABLE ckdt_checklist_items (
   observation TEXT,
   tags ckdt_tag_type[] DEFAULT NULL,
   is_optional BOOLEAN NOT NULL DEFAULT FALSE,
+  position INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -69,6 +71,8 @@ CREATE INDEX idx_ckdt_checklists_service_id ON ckdt_checklists(service_id);
 CREATE INDEX idx_ckdt_checklist_items_checklist_id ON ckdt_checklist_items(checklist_id);
 CREATE INDEX idx_ckdt_user_progress_user_id ON ckdt_user_progress(user_id);
 CREATE INDEX idx_ckdt_user_progress_checklist_item_id ON ckdt_user_progress(checklist_item_id);
+CREATE INDEX idx_ckdt_checklists_position ON ckdt_checklists(position);
+CREATE INDEX idx_ckdt_checklist_items_position ON ckdt_checklist_items(position);
 
 -- Create updated_at triggers
 CREATE OR REPLACE FUNCTION ckdt_trigger_set_timestamp()
@@ -137,3 +141,51 @@ FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
 
 CREATE POLICY "Admins can manage ckdt_checklist_items" ON ckdt_checklist_items 
 FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+
+-- Migration: If the tables already exist, add the position columns
+DO $$
+BEGIN
+    -- Check if the position column exists in ckdt_checklists
+    IF NOT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'ckdt_checklists' AND column_name = 'position'
+    ) THEN
+        -- Add position column to ckdt_checklists
+        ALTER TABLE ckdt_checklists ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+        
+        -- Update existing records to have sequential positions based on id
+        WITH indexed AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY service_id ORDER BY created_at) - 1 as row_num
+            FROM ckdt_checklists
+        )
+        UPDATE ckdt_checklists
+        SET position = indexed.row_num
+        FROM indexed
+        WHERE ckdt_checklists.id = indexed.id;
+        
+        -- Create index on position column
+        CREATE INDEX IF NOT EXISTS idx_ckdt_checklists_position ON ckdt_checklists(position);
+    END IF;
+    
+    -- Check if the position column exists in ckdt_checklist_items
+    IF NOT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'ckdt_checklist_items' AND column_name = 'position'
+    ) THEN
+        -- Add position column to ckdt_checklist_items
+        ALTER TABLE ckdt_checklist_items ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+        
+        -- Update existing records to have sequential positions based on id
+        WITH indexed AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY checklist_id ORDER BY created_at) - 1 as row_num
+            FROM ckdt_checklist_items
+        )
+        UPDATE ckdt_checklist_items
+        SET position = indexed.row_num
+        FROM indexed
+        WHERE ckdt_checklist_items.id = indexed.id;
+        
+        -- Create index on position column
+        CREATE INDEX IF NOT EXISTS idx_ckdt_checklist_items_position ON ckdt_checklist_items(position);
+    END IF;
+END $$;

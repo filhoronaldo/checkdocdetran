@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
@@ -8,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy, MoveUp, MoveDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase, { getAuthToken } from "@/lib/supabase";
+import supabase, { getAuthToken, updateChecklistPositions } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,6 +163,62 @@ export default function ServiceDetail() {
   const handleBackToHome = () => {
     resetAllServiceItems();
     navigate("/");
+  };
+
+  const handleMoveSectionUp = async (index: number) => {
+    if (!service || index <= 0) return;
+    
+    const updatedChecklists = [...service.checklists];
+    const temp = updatedChecklists[index];
+    updatedChecklists[index] = updatedChecklists[index - 1];
+    updatedChecklists[index - 1] = temp;
+    
+    const updatedService = {
+      ...service,
+      checklists: updatedChecklists
+    };
+    
+    setService(updatedService);
+    
+    setServices(prevServices => 
+      prevServices.map(s => s.id === service.id ? updatedService : s)
+    );
+    
+    // Update positions in the database
+    const checklistIds = updatedChecklists.map(checklist => checklist.id);
+    const success = await updateChecklistPositions(service.id, checklistIds);
+    
+    if (!success) {
+      toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
+    }
+  };
+
+  const handleMoveSectionDown = async (index: number) => {
+    if (!service || index >= service.checklists.length - 1) return;
+    
+    const updatedChecklists = [...service.checklists];
+    const temp = updatedChecklists[index];
+    updatedChecklists[index] = updatedChecklists[index + 1];
+    updatedChecklists[index + 1] = temp;
+    
+    const updatedService = {
+      ...service,
+      checklists: updatedChecklists
+    };
+    
+    setService(updatedService);
+    
+    setServices(prevServices => 
+      prevServices.map(s => s.id === service.id ? updatedService : s)
+    );
+    
+    // Update positions in the database
+    const checklistIds = updatedChecklists.map(checklist => checklist.id);
+    const success = await updateChecklistPositions(service.id, checklistIds);
+    
+    if (!success) {
+      toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
+    }
   };
 
   const duplicateService = () => {
@@ -418,7 +475,7 @@ export default function ServiceDetail() {
         )}
         
         <div className="space-y-8">
-          {service.checklists.map((checklist) => {
+          {service.checklists.map((checklist, checklistIndex) => {
             const sectionProgress = calculateProgress(checklist);
             const isCompleted = isSectionCompleted(checklist);
             
@@ -445,34 +502,60 @@ export default function ServiceDetail() {
                     </div>
                   </h3>
                   
-                  {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {Math.round(sectionProgress)}%
-                      </span>
-                      <div className="w-24 bg-muted rounded-full h-1.5">
-                        <motion.div 
-                          className="bg-completed h-1.5 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${sectionProgress}%` }}
-                          transition={{ duration: 0.5 }}
-                        />
+                  <div className="flex items-center gap-2">
+                    {isAuthenticated && (
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-1"
+                          onClick={() => handleMoveSectionUp(checklistIndex)}
+                          disabled={checklistIndex === 0}
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-1"
+                          onClick={() => handleMoveSectionDown(checklistIndex)}
+                          disabled={checklistIndex === service.checklists.length - 1}
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </div>
-                  )}
+                    )}
                   
-                  {checklist.isAlternative && (
-                    <div className="flex items-center">
-                      <span className={cn(
-                        "text-xs px-2 py-1 rounded-full",
-                        isCompleted 
-                          ? "bg-completed/20 text-completed" 
-                          : "bg-muted text-muted-foreground"
-                      )}>
-                        {isCompleted ? "Completo" : "Selecione um item"}
-                      </span>
-                    </div>
-                  )}
+                    {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(sectionProgress)}%
+                        </span>
+                        <div className="w-24 bg-muted rounded-full h-1.5">
+                          <motion.div 
+                            className="bg-completed h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${sectionProgress}%` }}
+                            transition={{ duration: 0.5 }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {checklist.isAlternative && (
+                      <div className="flex items-center">
+                        <span className={cn(
+                          "text-xs px-2 py-1 rounded-full",
+                          isCompleted 
+                            ? "bg-completed/20 text-completed" 
+                            : "bg-muted text-muted-foreground"
+                        )}>
+                          {isCompleted ? "Completo" : "Selecione um item"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <AnimatePresence>

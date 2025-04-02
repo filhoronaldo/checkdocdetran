@@ -48,4 +48,56 @@ export const isAuthenticated = () => {
   }
 };
 
+// Function to update checklist positions when a section is moved
+export const updateChecklistPositions = async (serviceId: string, checklistIds: string[]) => {
+  try {
+    const token = await getAuthToken();
+    
+    if (!token) {
+      console.error('No auth token available');
+      return false;
+    }
+    
+    // Update each checklist with its new position
+    const updates = checklistIds.map((id, index) => {
+      return supabase
+        .from('ckdt_checklists')
+        .update({ position: index })
+        .eq('id', id);
+    });
+    
+    await Promise.all(updates);
+    return true;
+  } catch (error) {
+    console.error('Error updating checklist positions:', error);
+    return false;
+  }
+};
+
+// Function to update checklist item positions within a checklist
+export const updateChecklistItemPositions = async (checklistId: string, itemIds: string[]) => {
+  try {
+    const token = await getAuthToken();
+    
+    if (!token) {
+      console.error('No auth token available');
+      return false;
+    }
+    
+    // Update each item with its new position
+    const updates = itemIds.map((id, index) => {
+      return supabase
+        .from('ckdt_checklist_items')
+        .update({ position: index })
+        .eq('id', id);
+    });
+    
+    await Promise.all(updates);
+    return true;
+  } catch (error) {
+    console.error('Error updating checklist item positions:', error);
+    return false;
+  }
+};
+
 export default supabase;

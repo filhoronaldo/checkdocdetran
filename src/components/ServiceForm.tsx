@@ -55,6 +55,7 @@ interface ServiceFormProps {
   onSubmit: (data: ServiceFormData) => void;
   defaultValues?: ServiceFormData;
   submitLabel?: string;
+  serviceId?: string;
 }
 
 export default function ServiceForm({ 
@@ -70,7 +71,8 @@ export default function ServiceForm({
       items: [{ text: "", observation: "", tags: [], isOptional: false }] 
     }]
   },
-  submitLabel = "Cadastrar Serviço"
+  submitLabel = "Cadastrar Serviço",
+  serviceId
 }: ServiceFormProps) {
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(formSchema),
@@ -167,7 +169,7 @@ export default function ServiceForm({
               )}
             />
 
-            <ChecklistForm control={form.control} />
+            <ChecklistForm control={form.control} serviceId={serviceId} />
 
             <Button type="submit" className="w-full md:w-auto">
               {submitLabel}

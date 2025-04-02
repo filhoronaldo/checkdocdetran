@@ -8,26 +8,75 @@ import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
 import { ServiceFormData } from "@/types";
 import ChecklistItemsForm from "./ChecklistItemsForm";
 import { Checkbox } from "@/components/ui/checkbox";
+import { updateChecklistPositions } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface ChecklistFormProps {
   control: Control<ServiceFormData>;
+  serviceId?: string;
 }
 
-const ChecklistForm = ({ control }: ChecklistFormProps) => {
-  const { fields, append, remove, move } = useFieldArray({
+const ChecklistForm = ({ control, serviceId }: ChecklistFormProps) => {
+  const { fields, append, remove, move, replace } = useFieldArray({
     control,
     name: "checklists"
   });
 
-  const handleMoveUp = (index: number) => {
+  const handleMoveUp = async (index: number) => {
     if (index > 0) {
+      // Move the item in the form
       move(index, index - 1);
+      
+      // If we have a serviceId, update the positions in the database
+      if (serviceId) {
+        try {
+          // Get the current field IDs in the new order
+          const checklistIds = fields.map((field, i) => {
+            if (i === index - 1) return fields[index].id;
+            if (i === index) return fields[index - 1].id;
+            return field.id;
+          });
+          
+          // Update the positions in the database
+          const success = await updateChecklistPositions(serviceId, checklistIds);
+          
+          if (!success) {
+            toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
+          }
+        } catch (error) {
+          console.error("Error updating checklist positions:", error);
+          toast.error("Erro ao atualizar a posição. As mudanças podem não ser mantidas ao recarregar.");
+        }
+      }
     }
   };
 
-  const handleMoveDown = (index: number) => {
+  const handleMoveDown = async (index: number) => {
     if (index < fields.length - 1) {
+      // Move the item in the form
       move(index, index + 1);
+      
+      // If we have a serviceId, update the positions in the database
+      if (serviceId) {
+        try {
+          // Get the current field IDs in the new order
+          const checklistIds = fields.map((field, i) => {
+            if (i === index) return fields[index + 1].id;
+            if (i === index + 1) return fields[index].id;
+            return field.id;
+          });
+          
+          // Update the positions in the database
+          const success = await updateChecklistPositions(serviceId, checklistIds);
+          
+          if (!success) {
+            toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
+          }
+        } catch (error) {
+          console.error("Error updating checklist positions:", error);
+          toast.error("Erro ao atualizar a posição. As mudanças podem não ser mantidas ao recarregar.");
+        }
+      }
     }
   };
 
