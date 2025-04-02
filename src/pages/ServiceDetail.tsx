@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
@@ -14,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase, { getAuthToken, updateChecklistPositions } from "@/lib/supabase";
+import supabase, { getAuthToken, updateChecklistPositions, fetchServiceWithOrderedChecklists } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +34,7 @@ export default function ServiceDetail() {
   const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
 
   const calculateProgress = (checklist: ChecklistGroup) => {
     const requiredItems = checklist.items.filter(item => !item.isOptional);
@@ -54,23 +54,93 @@ export default function ServiceDetail() {
   };
 
   useEffect(() => {
-    const foundService = services.find(s => s.id === id);
-    if (foundService) {
-      setService(foundService);
+    const loadServiceFromDatabase = async () => {
+      if (!id) return;
       
-      const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
-      const allSectionsCompleted = requiredSections.every(section => {
-        if (section.isAlternative) {
-          return section.items.some(item => item.isCompleted);
+      setLoading(true);
+      try {
+        const serviceFromDb = await fetchServiceWithOrderedChecklists(id);
+        
+        if (serviceFromDb) {
+          const localService = services.find(s => s.id === id);
+          
+          if (localService) {
+            const mergedService = {
+              ...serviceFromDb,
+              checklists: serviceFromDb.checklists.map(checklist => {
+                const localChecklist = localService.checklists.find(c => c.id === checklist.id);
+                
+                if (localChecklist) {
+                  return {
+                    ...checklist,
+                    items: checklist.items.map(item => {
+                      const localItem = localChecklist.items.find(i => i.id === item.id);
+                      return {
+                        ...item,
+                        isCompleted: localItem ? localItem.isCompleted : false
+                      };
+                    })
+                  };
+                }
+                
+                return checklist;
+              })
+            };
+            
+            setService(mergedService);
+            
+            setServices(prevServices => 
+              prevServices.map(s => s.id === id ? mergedService : s)
+            );
+            
+            const requiredSections = mergedService.checklists.filter(checklist => !checklist.isOptional);
+            const allSectionsCompleted = requiredSections.every(section => {
+              if (section.isAlternative) {
+                return section.items.some(item => item.isCompleted);
+              } else {
+                const requiredItems = section.items.filter(item => !item.isOptional);
+                return requiredItems.length > 0 && 
+                      requiredItems.every(item => item.isCompleted);
+              }
+            });
+            
+            setAllCompleted(allSectionsCompleted);
+          } else {
+            setService(serviceFromDb);
+          }
         } else {
-          const requiredItems = section.items.filter(item => !item.isOptional);
-          return requiredItems.length > 0 && 
-                 requiredItems.every(item => item.isCompleted);
+          const foundService = services.find(s => s.id === id);
+          if (foundService) {
+            setService(foundService);
+            
+            const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
+            const allSectionsCompleted = requiredSections.every(section => {
+              if (section.isAlternative) {
+                return section.items.some(item => item.isCompleted);
+              } else {
+                const requiredItems = section.items.filter(item => !item.isOptional);
+                return requiredItems.length > 0 && 
+                      requiredItems.every(item => item.isCompleted);
+              }
+            });
+            
+            setAllCompleted(allSectionsCompleted);
+          }
         }
-      });
-      
-      setAllCompleted(allSectionsCompleted);
-    }
+      } catch (error) {
+        console.error("Error loading service:", error);
+        toast.error("Erro ao carregar o serviço.");
+        
+        const foundService = services.find(s => s.id === id);
+        if (foundService) {
+          setService(foundService);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadServiceFromDatabase();
   }, [id, services]);
 
   useEffect(() => {
@@ -184,11 +254,12 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    // Update positions in the database
     const checklistIds = updatedChecklists.map(checklist => checklist.id);
     const success = await updateChecklistPositions(service.id, checklistIds);
     
-    if (!success) {
+    if (success) {
+      toast.success("Posições atualizadas com sucesso!");
+    } else {
       toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
     }
   };
@@ -212,11 +283,12 @@ export default function ServiceDetail() {
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    // Update positions in the database
     const checklistIds = updatedChecklists.map(checklist => checklist.id);
     const success = await updateChecklistPositions(service.id, checklistIds);
     
-    if (!success) {
+    if (success) {
+      toast.success("Posições atualizadas com sucesso!");
+    } else {
       toast.error("Falha ao atualizar a posição no banco de dados. Tente novamente.");
     }
   };
@@ -310,6 +382,19 @@ export default function ServiceDetail() {
       toast.error("Seu navegador não suporta esta funcionalidade!");
     }
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <h2 className="text-2xl font-bold">Carregando serviço...</h2>
+          <p className="text-muted-foreground mt-2">
+            Aguarde enquanto carregamos os detalhes do serviço.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!service) {
     return (
