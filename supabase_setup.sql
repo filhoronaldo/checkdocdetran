@@ -76,6 +76,30 @@ CREATE TABLE IF NOT EXISTS ckdt_user_progress (
   UNIQUE(user_id, checklist_item_id)
 );
 
+-- Add position column to tables if they don't exist
+DO $$
+BEGIN
+    -- First check if the position column already exists in ckdt_checklists
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'ckdt_checklists' AND column_name = 'position'
+    ) THEN
+        -- Add position column
+        ALTER TABLE ckdt_checklists ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+    END IF;
+
+    -- Check if the position column already exists in ckdt_checklist_items
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'ckdt_checklist_items' AND column_name = 'position'
+    ) THEN
+        -- Add position column
+        ALTER TABLE ckdt_checklist_items ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+    END IF;
+END $$;
+
 -- Create indexes for better query performance if they don't exist
 DO $$
 BEGIN
@@ -206,6 +230,3 @@ BEGIN
         FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
     END IF;
 END $$;
-
--- Migration: The position columns are already defined in the table creation statements above,
--- so we don't need this migration anymore
