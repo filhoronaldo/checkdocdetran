@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy, MoveUp, MoveDown } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, Trash2, Share, Copy, MoveUp, MoveDown, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { initialServices } from "@/data/services";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase, { getAuthToken, updateChecklistPositions } from "@/lib/supabase";
+import supabase, { getAuthToken, updateChecklistPositions, fetchServiceById } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,43 +27,71 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import AnimatedTransition from "@/components/AnimatedTransition";
+import { useQuery } from "@tanstack/react-query";
 
 export default function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [services, setServices] = useLocalStorage<Service[]>("services", initialServices);
-  const [service, setService] = useState<Service | null>(null);
   const [allCompleted, setAllCompleted] = useState(false);
   const { isAuthenticated } = useAuth();
 
+  // Use React Query to fetch the service
+  const { 
+    data: service, 
+    isLoading, 
+    isError, 
+    refetch 
+  } = useQuery({
+    queryKey: ['service', id],
+    queryFn: async () => {
+      if (!id) return null;
+      
+      // First try to fetch from Supabase
+      const supabaseService = await fetchServiceById(id);
+      
+      if (supabaseService) {
+        return supabaseService;
+      }
+      
+      // Fall back to localStorage if Supabase fetch fails
+      console.log('Falling back to localStorage for service data');
+      return services.find(s => s.id === id) || null;
+    },
+    staleTime: 60000, // 1 minute
+  });
+
   const calculateProgress = (checklist: ChecklistGroup) => {
-    const requiredItems = checklist.items.filter(item => !item.isOptional);
+    const requiredItems = (checklist.items || []).filter(item => !item.isOptional);
     if (requiredItems.length === 0) return 100;
     const completedRequiredItems = requiredItems.filter(item => item.isCompleted).length;
     return (completedRequiredItems / requiredItems.length) * 100;
   };
 
   const isSectionCompleted = (checklist: ChecklistGroup) => {
+    const items = checklist.items || [];
     if (checklist.isAlternative) {
-      return checklist.items.some(item => item.isCompleted);
+      return items.some(item => item.isCompleted);
     } else {
-      const requiredItems = checklist.items.filter(item => !item.isOptional);
+      const requiredItems = items.filter(item => !item.isOptional);
       return requiredItems.length > 0 && 
              requiredItems.every(item => item.isCompleted);
     }
   };
 
   useEffect(() => {
-    const foundService = services.find(s => s.id === id);
-    if (foundService) {
-      setService(foundService);
+    if (service) {
+      // Update local storage with the latest service data
+      setServices(prevServices => 
+        prevServices.map(s => s.id === service.id ? service : s)
+      );
       
-      const requiredSections = foundService.checklists.filter(checklist => !checklist.isOptional);
+      const requiredSections = (service.checklists || []).filter(checklist => !checklist.isOptional);
       const allSectionsCompleted = requiredSections.every(section => {
         if (section.isAlternative) {
-          return section.items.some(item => item.isCompleted);
+          return (section.items || []).some(item => item.isCompleted);
         } else {
-          const requiredItems = section.items.filter(item => !item.isOptional);
+          const requiredItems = (section.items || []).filter(item => !item.isOptional);
           return requiredItems.length > 0 && 
                  requiredItems.every(item => item.isCompleted);
         }
@@ -71,7 +99,7 @@ export default function ServiceDetail() {
       
       setAllCompleted(allSectionsCompleted);
     }
-  }, [id, services]);
+  }, [service, setServices]);
 
   useEffect(() => {
     return () => {
@@ -84,11 +112,11 @@ export default function ServiceDetail() {
     
     const updatedService = {
       ...service,
-      checklists: service.checklists.map(checklist => {
+      checklists: (service.checklists || []).map(checklist => {
         if (checklist.id === checklistGroupId) {
           return {
             ...checklist,
-            items: checklist.items.map(item => {
+            items: (checklist.items || []).map(item => {
               if (item.id === itemId) {
                 return { ...item, isCompleted: !item.isCompleted };
               }
@@ -100,18 +128,16 @@ export default function ServiceDetail() {
       })
     };
     
-    setService(updatedService);
-    
     setServices(prevServices => 
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
-    const requiredSections = updatedService.checklists.filter(checklist => !checklist.isOptional);
+    const requiredSections = (updatedService.checklists || []).filter(checklist => !checklist.isOptional);
     const allSectionsCompleted = requiredSections.every(section => {
       if (section.isAlternative) {
-        return section.items.some(item => item.isCompleted);
+        return (section.items || []).some(item => item.isCompleted);
       } else {
-        const requiredItems = section.items.filter(item => !item.isOptional);
+        const requiredItems = (section.items || []).filter(item => !item.isOptional);
         return requiredItems.length > 0 && 
                requiredItems.every(item => item.isCompleted);
       }
@@ -123,9 +149,9 @@ export default function ServiceDetail() {
   const resetAllServiceItems = () => {
     const updatedServices = services.map(service => ({
       ...service,
-      checklists: service.checklists.map(checklist => ({
+      checklists: (service.checklists || []).map(checklist => ({
         ...checklist,
-        items: checklist.items.map(item => ({
+        items: (checklist.items || []).map(item => ({
           ...item,
           isCompleted: false
         }))
@@ -140,21 +166,18 @@ export default function ServiceDetail() {
     
     const updatedService = {
       ...service,
-      checklists: service.checklists.map(checklist => ({
+      checklists: (service.checklists || []).map(checklist => ({
         ...checklist,
-        items: checklist.items.map(item => ({
+        items: (checklist.items || []).map(item => ({
           ...item,
           isCompleted: false
         }))
       }))
     };
     
-    setService(updatedService);
-    
-    const updatedServices = services.map(s => 
-      s.id === service.id ? updatedService : s
+    setServices(prevServices => 
+      prevServices.map(s => s.id === service.id ? updatedService : s)
     );
-    setServices(updatedServices);
     setAllCompleted(false);
     
     toast.success("Checklist reiniciado com sucesso!");
@@ -168,7 +191,7 @@ export default function ServiceDetail() {
   const handleMoveSectionUp = async (index: number) => {
     if (!service || index <= 0) return;
     
-    const updatedChecklists = [...service.checklists];
+    const updatedChecklists = [...(service.checklists || [])];
     const temp = updatedChecklists[index];
     updatedChecklists[index] = updatedChecklists[index - 1];
     updatedChecklists[index - 1] = temp;
@@ -177,8 +200,6 @@ export default function ServiceDetail() {
       ...service,
       checklists: updatedChecklists
     };
-    
-    setService(updatedService);
     
     setServices(prevServices => 
       prevServices.map(s => s.id === service.id ? updatedService : s)
@@ -194,9 +215,9 @@ export default function ServiceDetail() {
   };
 
   const handleMoveSectionDown = async (index: number) => {
-    if (!service || index >= service.checklists.length - 1) return;
+    if (!service || index >= (service.checklists || []).length - 1) return;
     
-    const updatedChecklists = [...service.checklists];
+    const updatedChecklists = [...(service.checklists || [])];
     const temp = updatedChecklists[index];
     updatedChecklists[index] = updatedChecklists[index + 1];
     updatedChecklists[index + 1] = temp;
@@ -205,8 +226,6 @@ export default function ServiceDetail() {
       ...service,
       checklists: updatedChecklists
     };
-    
-    setService(updatedService);
     
     setServices(prevServices => 
       prevServices.map(s => s.id === service.id ? updatedService : s)
@@ -248,7 +267,7 @@ export default function ServiceDetail() {
         return;
       }
       
-      for (const checklist of service.checklists) {
+      for (const checklist of (service.checklists || [])) {
         const { error: itemsError } = await supabase
           .from('ckdt_checklist_items')
           .delete()
@@ -311,29 +330,51 @@ export default function ServiceDetail() {
     }
   };
 
-  if (!service) {
+  // Show loading state
+  if (isLoading) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <h2 className="text-2xl font-bold">Serviço não encontrado</h2>
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+          <h2 className="text-2xl font-bold">Carregando serviço...</h2>
           <p className="text-muted-foreground mt-2">
-            O serviço que você está procurando não existe ou foi removido.
+            Aguarde enquanto carregamos os detalhes do serviço.
           </p>
-          <Button className="mt-4" onClick={() => navigate("/")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar para a lista
-          </Button>
         </div>
       </Layout>
     );
   }
 
-  const requiredSections = service.checklists.filter(checklist => !checklist.isOptional);
+  // Show error state with retry button
+  if (isError || !service) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <h2 className="text-2xl font-bold">Serviço não encontrado</h2>
+          <p className="text-muted-foreground mt-2">
+            O serviço que você está procurando não existe ou ocorreu um erro ao carregá-lo.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Tentar novamente
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para a lista
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  const requiredSections = (service.checklists || []).filter(checklist => !checklist.isOptional);
   const completedRequiredSections = requiredSections.filter(section => {
     if (section.isAlternative) {
-      return section.items.some(item => item.isCompleted);
+      return (section.items || []).some(item => item.isCompleted);
     } else {
-      const requiredItems = section.items.filter(item => !item.isOptional);
+      const requiredItems = (section.items || []).filter(item => !item.isOptional);
       return requiredItems.length > 0 && 
              requiredItems.every(item => item.isCompleted);
     }
@@ -475,7 +516,7 @@ export default function ServiceDetail() {
         )}
         
         <div className="space-y-8">
-          {service.checklists.map((checklist, checklistIndex) => {
+          {(service.checklists || []).map((checklist, checklistIndex) => {
             const sectionProgress = calculateProgress(checklist);
             const isCompleted = isSectionCompleted(checklist);
             
@@ -520,14 +561,14 @@ export default function ServiceDetail() {
                           size="sm" 
                           className="h-8 w-8 p-1"
                           onClick={() => handleMoveSectionDown(checklistIndex)}
-                          disabled={checklistIndex === service.checklists.length - 1}
+                          disabled={checklistIndex === (service.checklists || []).length - 1}
                         >
                           <MoveDown className="h-4 w-4" />
                         </Button>
                       </div>
                     )}
                   
-                    {checklist.items.filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
+                    {(checklist.items || []).filter(item => !item.isOptional).length > 0 && !checklist.isAlternative && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
                           {Math.round(sectionProgress)}%
@@ -559,7 +600,7 @@ export default function ServiceDetail() {
                 </div>
                 
                 <AnimatePresence>
-                  {checklist.items.map((item) => (
+                  {(checklist.items || []).map((item) => (
                     <ChecklistItem 
                       key={item.id} 
                       item={item} 

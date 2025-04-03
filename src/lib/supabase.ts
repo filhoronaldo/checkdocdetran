@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { apiUrl, anonKey } from '@/utils/databaseSetup';
+import { Service, ChecklistGroup, ChecklistItem } from '@/types';
 
 const supabaseUrl = apiUrl();
 const supabaseAnonKey = anonKey();
@@ -97,6 +98,91 @@ export const updateChecklistItemPositions = async (checklistId: string, itemIds:
   } catch (error) {
     console.error('Error updating checklist item positions:', error);
     return false;
+  }
+};
+
+// Function to fetch a service by ID with its checklists and items
+export const fetchServiceById = async (serviceId: string): Promise<Service | null> => {
+  try {
+    // Fetch the service
+    const { data: serviceData, error: serviceError } = await supabase
+      .from('ckdt_services')
+      .select('*')
+      .eq('id', serviceId)
+      .single();
+    
+    if (serviceError || !serviceData) {
+      console.error('Error fetching service:', serviceError);
+      return null;
+    }
+    
+    // Fetch all checklists for this service, ordered by position
+    const { data: checklistsData, error: checklistsError } = await supabase
+      .from('ckdt_checklists')
+      .select('*')
+      .eq('service_id', serviceId)
+      .order('position', { ascending: true });
+    
+    if (checklistsError) {
+      console.error('Error fetching checklists:', checklistsError);
+      return null;
+    }
+    
+    // Make sure checklistsData is an array even if it's null or undefined
+    const safeChecklistsData = checklistsData || [];
+    
+    // Prepare to store all checklists with their items
+    const checklists: ChecklistGroup[] = [];
+    
+    // For each checklist, fetch its items
+    for (const checklist of safeChecklistsData) {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('ckdt_checklist_items')
+        .select('*')
+        .eq('checklist_id', checklist.id)
+        .order('position', { ascending: true });
+      
+      if (itemsError) {
+        console.error('Error fetching checklist items:', itemsError);
+        continue; // Skip this checklist if there's an error
+      }
+      
+      // Make sure itemsData is an array even if it's null or undefined
+      const safeItemsData = itemsData || [];
+      
+      // Convert items to our application format
+      const items: ChecklistItem[] = safeItemsData.map(item => ({
+        id: item.id,
+        text: item.text,
+        isCompleted: false, // Start uncompleted
+        observation: item.observation || undefined,
+        tags: item.tags || [], // Ensure tags is an array even if null
+        isOptional: !!item.is_optional, // Convert to boolean
+        position: item.position
+      }));
+      
+      // Add the checklist with its items
+      checklists.push({
+        id: checklist.id,
+        title: checklist.title,
+        items,
+        isOptional: !!checklist.is_optional, // Convert to boolean
+        isAlternative: !!checklist.is_alternative, // Convert to boolean
+        position: checklist.position
+      });
+    }
+    
+    // Build the complete service object
+    return {
+      id: serviceData.id,
+      title: serviceData.title,
+      category: serviceData.category,
+      description: serviceData.description,
+      checklists
+    };
+  } catch (error) {
+    console.error('Error fetching service by ID:', error);
+    return null;
   }
 };
 
