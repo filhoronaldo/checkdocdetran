@@ -42,12 +42,13 @@ export default function ChecklistItem({
   };
 
   const renderTags = (tags?: string[] | null) => {
-    // Make sure tags is an array, even if it's undefined or null
-    if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
+    // Ensure tags is a valid array
+    const safeTags = Array.isArray(tags) ? tags : [];
+    if (safeTags.length === 0) return null;
 
     return (
       <div className="flex flex-wrap gap-1 mt-1">
-        {tags.map((tag) => (
+        {safeTags.map((tag) => (
           <span key={tag} className={cn(
             "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
             effectivelyCompleted ? "opacity-50" : "opacity-100",
