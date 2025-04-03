@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormControl, FormMessage, FormLabel } from "@/components/ui/form";
 import { Checkbox } from "./ui/checkbox";
 import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
+import { MultiSelect } from "./ui/multi-select";
 import { ServiceFormData } from "@/types";
 
 interface ChecklistItemsFormProps {
@@ -13,8 +14,7 @@ interface ChecklistItemsFormProps {
   checklistIndex: number;
 }
 
-// Define the tag options with typed values
-const tagOptions: { value: 'Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia'; label: string }[] = [
+const tagOptions = [
   { value: "Original", label: "Original" },
   { value: "Físico", label: "Físico" },
   { value: "Digital", label: "Digital" },
@@ -123,42 +123,23 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
               )}
             />
             
-            <div className="md:col-span-5">
-              <FormLabel className="text-xs block mb-2">Tags</FormLabel>
-              <div className="flex flex-wrap gap-2 border border-input rounded-md p-2">
-                {tagOptions.map((tag) => (
-                  <FormField
-                    key={tag.value}
-                    control={control}
-                    name={`checklists.${checklistIndex}.items.${itemIndex}.tags`}
-                    render={({ field }) => {
-                      // Ensure field value is always an array
-                      const fieldValue = Array.isArray(field.value) ? field.value : [];
-                      
-                      return (
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={fieldValue.includes(tag.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  // Add the tag if it's not already there
-                                  field.onChange([...fieldValue, tag.value]);
-                                } else {
-                                  // Remove the tag
-                                  field.onChange(fieldValue.filter(value => value !== tag.value));
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <span className="text-xs font-medium">{tag.label}</span>
-                        </FormItem>
-                      );
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            <FormField
+              control={control}
+              name={`checklists.${checklistIndex}.items.${itemIndex}.tags`}
+              render={({ field }) => (
+                <FormItem className="md:col-span-5">
+                  <FormLabel className="text-xs">Tags</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      placeholder="Selecione tags"
+                      selected={field.value || []}
+                      options={tagOptions}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </div>
           
           <FormField

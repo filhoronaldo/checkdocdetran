@@ -22,7 +22,7 @@ interface MultiSelectProps {
 
 export function MultiSelect({
   options,
-  selected = [], // Ensure selected always has a default value
+  selected,
   onChange,
   placeholder = "Select options",
   className,
@@ -30,18 +30,15 @@ export function MultiSelect({
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
-  // Ensure we have a valid array for selected
-  const safeSelected = Array.isArray(selected) ? selected : [];
-
   const handleUnselect = (item: string) => {
-    onChange(safeSelected.filter((i) => i !== item));
+    onChange(selected.filter((i) => i !== item));
   };
 
   const handleSelect = (value: string) => {
-    if (safeSelected.includes(value)) {
-      onChange(safeSelected.filter((item) => item !== value));
+    if (selected.includes(value)) {
+      onChange(selected.filter((item) => item !== value));
     } else {
-      onChange([...safeSelected, value]);
+      onChange([...selected, value]);
     }
   };
 
@@ -55,9 +52,9 @@ export function MultiSelect({
             className
           )}
         >
-          {safeSelected.length > 0 ? (
+          {selected.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {safeSelected.map((item) => (
+              {selected.map((item) => (
                 <Badge
                   key={item}
                   variant="secondary"
@@ -99,7 +96,7 @@ export function MultiSelect({
           <CommandEmpty>No item found.</CommandEmpty>
           <CommandGroup className="max-h-64 overflow-auto">
             {options.map((option) => {
-              const isSelected = safeSelected.includes(option.value);
+              const isSelected = selected.includes(option.value);
               return (
                 <CommandItem
                   key={option.value}

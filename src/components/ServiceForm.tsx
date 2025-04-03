@@ -81,19 +81,7 @@ export default function ServiceForm({
 
   const handleSubmit = (data: ServiceFormData) => {
     try {
-      // Ensure all tag arrays are properly initialized
-      const sanitizedData = {
-        ...data,
-        checklists: data.checklists.map(checklist => ({
-          ...checklist,
-          items: checklist.items.map(item => ({
-            ...item,
-            tags: Array.isArray(item.tags) ? item.tags : []
-          }))
-        }))
-      };
-      
-      onSubmit(sanitizedData);
+      onSubmit(data);
       form.reset({
         title: "",
         category: "Veículo",
@@ -107,7 +95,6 @@ export default function ServiceForm({
       });
       toast.success("Serviço cadastrado com sucesso!");
     } catch (error) {
-      console.error("Error submitting form:", error);
       toast.error("Erro ao cadastrar serviço");
     }
   };
