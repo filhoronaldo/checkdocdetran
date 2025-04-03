@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
@@ -79,13 +78,18 @@ export default function ServiceDetail() {
     }
   };
 
+  // Fix the infinite loop by adding proper dependency array and ensuring we don't update state when service hasn't changed
   useEffect(() => {
     if (service) {
-      // Update local storage with the latest service data
-      setServices(prevServices => 
-        prevServices.map(s => s.id === service.id ? service : s)
-      );
+      // Only update local storage if service data has changed
+      const existingService = services.find(s => s.id === service.id);
+      if (existingService && JSON.stringify(existingService) !== JSON.stringify(service)) {
+        setServices(prevServices => 
+          prevServices.map(s => s.id === service.id ? service : s)
+        );
+      }
       
+      // Calculate allCompleted state
       const requiredSections = (service.checklists || []).filter(checklist => !checklist.isOptional);
       const allSectionsCompleted = requiredSections.every(section => {
         if (section.isAlternative) {
@@ -99,11 +103,12 @@ export default function ServiceDetail() {
       
       setAllCompleted(allSectionsCompleted);
     }
-  }, [service, setServices]);
+  }, [service, services, setServices]);
 
+  // Cleanup on component unmount
   useEffect(() => {
     return () => {
-      resetAllServiceItems();
+      console.log("ServiceDetail component unmounting");
     };
   }, []);
 
@@ -128,10 +133,12 @@ export default function ServiceDetail() {
       })
     };
     
+    // Update local storage directly instead of using service state
     setServices(prevServices => 
       prevServices.map(s => s.id === service.id ? updatedService : s)
     );
     
+    // Calculate if all sections are completed
     const requiredSections = (updatedService.checklists || []).filter(checklist => !checklist.isOptional);
     const allSectionsCompleted = requiredSections.every(section => {
       if (section.isAlternative) {
@@ -184,7 +191,6 @@ export default function ServiceDetail() {
   };
 
   const handleBackToHome = () => {
-    resetAllServiceItems();
     navigate("/");
   };
 
