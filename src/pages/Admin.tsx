@@ -42,7 +42,7 @@ export default function Admin() {
 
   const handleCreateService = async (data: ServiceFormData) => {
     try {
-      // Create a new service object
+      // Create a new service object, ensuring all arrays are properly initialized
       const newService: Service = {
         id: uuidv4(),
         title: data.title,
@@ -51,14 +51,14 @@ export default function Admin() {
         checklists: data.checklists.map(checklist => ({
           id: uuidv4(),
           title: checklist.title,
-          isOptional: checklist.isOptional,
-          isAlternative: checklist.isAlternative,
+          isOptional: checklist.isOptional || false,
+          isAlternative: checklist.isAlternative || false,
           items: checklist.items.map(item => ({
             id: uuidv4(),
             text: item.text,
             observation: item.observation || undefined,
-            tags: item.tags || undefined,
-            isOptional: item.isOptional,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            isOptional: item.isOptional || false,
             isCompleted: false
           }))
         }))
@@ -124,7 +124,7 @@ export default function Admin() {
               checklist_id: checklist.id,
               text: item.text,
               observation: item.observation,
-              tags: item.tags,
+              tags: Array.isArray(item.tags) ? item.tags : [],
               is_optional: item.isOptional || false
             });
           
@@ -174,8 +174,8 @@ export default function Admin() {
           return {
             id: existingGroup?.id || uuidv4(),
             title: checklist.title,
-            isOptional: checklist.isOptional,
-            isAlternative: checklist.isAlternative,
+            isOptional: checklist.isOptional || false,
+            isAlternative: checklist.isAlternative || false,
             items: checklist.items.map((item, index) => {
               // Try to preserve existing items and their completion state
               const existingItem = existingGroup?.items[index];
@@ -183,8 +183,8 @@ export default function Admin() {
                 id: existingItem?.id || uuidv4(),
                 text: item.text,
                 observation: item.observation || undefined,
-                tags: item.tags || undefined,
-                isOptional: item.isOptional,
+                tags: Array.isArray(item.tags) ? item.tags : [],
+                isOptional: item.isOptional || false,
                 isCompleted: existingItem?.isCompleted || false
               };
             })
@@ -259,7 +259,7 @@ export default function Admin() {
               .update({
                 text: item.text,
                 observation: item.observation,
-                tags: item.tags,
+                tags: Array.isArray(item.tags) ? item.tags : [],
                 is_optional: item.isOptional || false
               })
               .eq('id', item.id);
@@ -274,7 +274,7 @@ export default function Admin() {
                 checklist_id: checklist.id,
                 text: item.text,
                 observation: item.observation,
-                tags: item.tags,
+                tags: Array.isArray(item.tags) ? item.tags : [],
                 is_optional: item.isOptional || false
               });
             
@@ -339,13 +339,13 @@ export default function Admin() {
       description: serviceToEdit.description,
       checklists: serviceToEdit.checklists.map(checklist => ({
         title: checklist.title,
-        isOptional: checklist.isOptional,
-        isAlternative: checklist.isAlternative,
+        isOptional: checklist.isOptional || false,
+        isAlternative: checklist.isAlternative || false,
         items: checklist.items.map(item => ({
           text: item.text,
-          observation: item.observation,
-          tags: item.tags,
-          isOptional: item.isOptional,
+          observation: item.observation || "",
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          isOptional: item.isOptional || false,
         }))
       }))
     };
@@ -375,6 +375,7 @@ export default function Admin() {
             onSubmit={isEditMode ? handleUpdateService : handleCreateService}
             defaultValues={getDefaultValues()}
             submitLabel={isEditMode ? "Atualizar Serviço" : "Cadastrar Serviço"}
+            serviceId={id}
           />
         </AnimatedTransition>
       </div>

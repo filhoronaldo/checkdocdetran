@@ -132,7 +132,7 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                   <FormControl>
                     <MultiSelect
                       placeholder="Selecione tags"
-                      selected={field.value || []}
+                      selected={Array.isArray(field.value) ? field.value : []}
                       options={tagOptions}
                       onChange={field.onChange}
                     />
