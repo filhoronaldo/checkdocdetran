@@ -126,19 +126,27 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
             <FormField
               control={control}
               name={`checklists.${checklistIndex}.items.${itemIndex}.tags`}
-              render={({ field }) => (
-                <FormItem className="md:col-span-5">
-                  <FormLabel className="text-xs">Tags</FormLabel>
-                  <FormControl>
-                    <MultiSelect
-                      placeholder="Selecione tags"
-                      selected={Array.isArray(field.value) ? field.value : []}
-                      options={tagOptions}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Garantir que field.value é sempre um array
+                const safeValue = Array.isArray(field.value) ? field.value : [];
+                
+                return (
+                  <FormItem className="md:col-span-5">
+                    <FormLabel className="text-xs">Tags</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        placeholder="Selecione tags"
+                        selected={safeValue}
+                        options={tagOptions}
+                        onChange={(newValue) => {
+                          // Garantir que nunca passamos undefined ou null para o MultiSelect
+                          field.onChange(newValue || []);
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                );
+              }}
             />
           </div>
           

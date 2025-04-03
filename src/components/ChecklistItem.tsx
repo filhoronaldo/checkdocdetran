@@ -41,7 +41,7 @@ export default function ChecklistItem({
     }
   };
 
-  const renderTags = (tags?: string[]) => {
+  const renderTags = (tags?: string[] | null) => {
     // Make sure tags is an array, even if it's undefined or null
     if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
 
