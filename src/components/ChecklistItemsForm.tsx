@@ -13,8 +13,8 @@ interface ChecklistItemsFormProps {
   checklistIndex: number;
 }
 
-// Define the tag options as a constant
-const tagOptions = [
+// Define the tag options with typed values
+const tagOptions: { value: 'Original' | 'Físico' | 'Digital' | 'Digital ou Físico' | 'Original e Cópia'; label: string }[] = [
   { value: "Original", label: "Original" },
   { value: "Físico", label: "Físico" },
   { value: "Digital", label: "Digital" },
