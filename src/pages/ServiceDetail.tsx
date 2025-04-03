@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Service, ChecklistItem as ChecklistItemType, ChecklistGroup } from "@/types";
@@ -105,7 +106,7 @@ export default function ServiceDetail() {
     }
   }, [service, services, setServices]);
 
-  // Cleanup on component unmount
+  // Cleanup on component unmount - don't reset checklist items here
   useEffect(() => {
     return () => {
       console.log("ServiceDetail component unmounting");
@@ -153,6 +154,7 @@ export default function ServiceDetail() {
     setAllCompleted(allSectionsCompleted);
   };
 
+  // This function should only be used for resetting all services, not just the current one
   const resetAllServiceItems = () => {
     const updatedServices = services.map(service => ({
       ...service,
@@ -168,6 +170,7 @@ export default function ServiceDetail() {
     setServices(updatedServices);
   };
 
+  // This function resets only the current service's items
   const resetAllItems = () => {
     if (!service) return;
     
@@ -191,6 +194,7 @@ export default function ServiceDetail() {
   };
 
   const handleBackToHome = () => {
+    // Don't reset checklists when navigating back to home
     navigate("/");
   };
 
