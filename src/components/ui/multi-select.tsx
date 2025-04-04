@@ -1,12 +1,11 @@
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronsUpDown, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 export type OptionType = {
   value: string;
@@ -31,24 +30,21 @@ export function MultiSelect({
   disabled = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
+  
+  // Ensure selected is always an array
+  const safeSelected = Array.isArray(selected) ? [...selected] : [];
 
   const handleUnselect = (item: string) => {
-    onChange((selected || []).filter((i) => i !== item));
+    onChange(safeSelected.filter((i) => i !== item));
   };
 
-  const handleToggleItem = (value: string) => {
-    // Create a safe copy of selected, ensuring it's never undefined
-    const currentSelected = Array.isArray(selected) ? [...selected] : [];
-    
-    if (currentSelected.includes(value)) {
-      onChange(currentSelected.filter((item) => item !== value));
+  const handleToggleItem = (value: string, checked: boolean) => {
+    if (checked) {
+      onChange([...safeSelected, value]);
     } else {
-      onChange([...currentSelected, value]);
+      onChange(safeSelected.filter((item) => item !== value));
     }
   };
-
-  // Ensure selected is always an array
-  const safeSelected = Array.isArray(selected) ? selected : [];
 
   return (
     <Popover open={open && !disabled} onOpenChange={setOpen}>
@@ -98,39 +94,30 @@ export function MultiSelect({
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command className="w-full">
-          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-          <CommandEmpty>No item found.</CommandEmpty>
-          <ScrollArea className="h-60">
-            <CommandGroup className="overflow-visible">
-              {options.map((option) => {
-                const isSelected = safeSelected.includes(option.value);
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => handleToggleItem(option.value)}
+      <PopoverContent className="w-full p-2" align="start">
+        <ScrollArea className="h-60 px-1">
+          <div className="space-y-2">
+            {options.map((option) => {
+              const isSelected = safeSelected.includes(option.value);
+              
+              return (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`option-${option.value}`}
+                    checked={isSelected}
+                    onCheckedChange={(checked) => handleToggleItem(option.value, !!checked)}
+                  />
+                  <label
+                    htmlFor={`option-${option.value}`}
+                    className="text-sm cursor-pointer"
                   >
-                    <div className="flex items-center gap-2 w-full">
-                      <Checkbox
-                        id={`option-${option.value}`}
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggleItem(option.value)}
-                      />
-                      <label
-                        htmlFor={`option-${option.value}`}
-                        className="flex-grow cursor-pointer text-sm"
-                      >
-                        {option.label}
-                      </label>
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </ScrollArea>
-        </Command>
+                    {option.label}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

@@ -135,7 +135,6 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                       selected={field.value || []}
                       options={tagOptions}
                       onChange={(value) => {
-                        // Ensure we're setting a valid array, never undefined
                         field.onChange(value || []);
                       }}
                     />
