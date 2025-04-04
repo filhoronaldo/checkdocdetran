@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormControl, FormMessage, FormLabel } from "@/components/ui/form";
 import { Checkbox } from "./ui/checkbox";
 import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
-import { MultiSelect } from "./ui/multi-select";
+import { MultiSelect, OptionType } from "./ui/multi-select";
 import { ServiceFormData } from "@/types";
 
 interface ChecklistItemsFormProps {
@@ -14,7 +14,7 @@ interface ChecklistItemsFormProps {
   checklistIndex: number;
 }
 
-const tagOptions = [
+const tagOptions: OptionType[] = [
   { value: "Original", label: "Original" },
   { value: "Físico", label: "Físico" },
   { value: "Digital", label: "Digital" },
@@ -134,7 +134,10 @@ const ChecklistItemsForm = ({ control, checklistIndex }: ChecklistItemsFormProps
                       placeholder="Selecione tags"
                       selected={field.value || []}
                       options={tagOptions}
-                      onChange={field.onChange}
+                      onChange={(value) => {
+                        // Ensure we're setting a valid array, never undefined
+                        field.onChange(value || []);
+                      }}
                     />
                   </FormControl>
                 </FormItem>

@@ -1,10 +1,12 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X, Check, ChevronsUpDown } from "lucide-react";
+import { X, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 export type OptionType = {
   value: string;
@@ -22,7 +24,7 @@ interface MultiSelectProps {
 
 export function MultiSelect({
   options,
-  selected,
+  selected = [],
   onChange,
   placeholder = "Select options",
   className,
@@ -31,16 +33,22 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false);
 
   const handleUnselect = (item: string) => {
-    onChange(selected.filter((i) => i !== item));
+    onChange((selected || []).filter((i) => i !== item));
   };
 
-  const handleSelect = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter((item) => item !== value));
+  const handleToggleItem = (value: string) => {
+    // Create a safe copy of selected, ensuring it's never undefined
+    const currentSelected = Array.isArray(selected) ? [...selected] : [];
+    
+    if (currentSelected.includes(value)) {
+      onChange(currentSelected.filter((item) => item !== value));
     } else {
-      onChange([...selected, value]);
+      onChange([...currentSelected, value]);
     }
   };
+
+  // Ensure selected is always an array
+  const safeSelected = Array.isArray(selected) ? selected : [];
 
   return (
     <Popover open={open && !disabled} onOpenChange={setOpen}>
@@ -52,9 +60,9 @@ export function MultiSelect({
             className
           )}
         >
-          {selected.length > 0 ? (
+          {safeSelected.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {selected.map((item) => (
+              {safeSelected.map((item) => (
                 <Badge
                   key={item}
                   variant="secondary"
@@ -94,28 +102,34 @@ export function MultiSelect({
         <Command className="w-full">
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
           <CommandEmpty>No item found.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-auto">
-            {options.map((option) => {
-              const isSelected = selected.includes(option.value);
-              return (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={() => handleSelect(option.value)}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <div className={cn(
-                      "flex h-4 w-4 items-center justify-center rounded-sm border", 
-                      isSelected ? "bg-primary border-primary text-primary-foreground" : "opacity-50"
-                    )}>
-                      {isSelected && <Check className="h-3 w-3" />}
+          <ScrollArea className="h-60">
+            <CommandGroup className="overflow-visible">
+              {options.map((option) => {
+                const isSelected = safeSelected.includes(option.value);
+                return (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    onSelect={() => handleToggleItem(option.value)}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Checkbox
+                        id={`option-${option.value}`}
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleItem(option.value)}
+                      />
+                      <label
+                        htmlFor={`option-${option.value}`}
+                        className="flex-grow cursor-pointer text-sm"
+                      >
+                        {option.label}
+                      </label>
                     </div>
-                    <span>{option.label}</span>
-                  </div>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </ScrollArea>
         </Command>
       </PopoverContent>
     </Popover>
